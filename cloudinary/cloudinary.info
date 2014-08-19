@@ -1,0 +1,19 @@
+name = Cloudinary
+description = Integrate the Cloudinary CDN service with File Entity
+package = Media
+dependencies[] = file_entity
+dependencies[] = media
+dependencies[] = media_internet
+dependencies[] = views
+dependencies[] = image
+
+core = 7.x
+version = 7.x-1.0-alpha1
+configure = admin/config/media/cloudinary
+
+files[] = includes/MediaCloudinaryStreamWrapper.inc
+files[] = includes/MediaCloudinaryStyles.inc
+files[] = includes/cloudinary.styles.inc
+files[] = cloudinary.module
+files[] = cloudinary.field.inc
+files[] = cloudinary.admin.inc

@@ -1,0 +1,446 @@
+<?php
+
+include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib/src/Cloudinary.php';
+include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib/src/Uploader.php';
+include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib/src/Api.php';
+include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/cloudinary.field.inc';
+
+/**
+ * Implements hook_help().
+ */
+function cloudinary_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#cloudinary':
+      $output = '';
+      $output .= '<h3>' . t('Cloudinary - Installation and Tips') . '</h3>';
+      $output .= '<p>' . t('The Cloudinary module allows you to automatically publish images to Cloudinary through image fields. The returned results can have image styles applied.') . '</p>';
+      $output .= '<h4>' . t('Prerequisites') . '</h4>';
+      $output .= '<ol>';
+      $output .= '<li>'.t('At least version 7.x-2.0-alpha3 of the media module required, found <a href="https://www.drupal.org/node/2120855">here</a>.').'</li>';
+      $output .= '<li>'.t('File entity module version 2 required.').'</li>';
+      $output .= '</ol>';
+      $output .= '<h4>' . t('Installation') . '</h4>';
+      $output .= '<ol>';
+      $output .= '<li>'.t('Enable all required contributed modules.').'</li>';
+      $output .= '<li>'.t('Enable the Cloudinary module.').'</li>';
+      $output .= '<li>'.t('On the <a href="/admin/config/media/cloudinary">configuration page</a>, enter all information. This can be found on your Cloudinary dashboard.').'</li>';
+      $output .= '<li>'.t('Next, create a <a href="/admin/config/media/image-styles/add">new image style</a> and give it the effect "Cloudinary"').'</li>';
+      $output .= '<li>'.t('Create a new "Image" field or edit an existing field and set its display to type "Cloudinary Image". In the advanced settings, set the image style to the new style created in step 4.').'</li>';
+      $output .= '</ol>';
+      $output .= '<h4>' . t('Additional') . '</h4>';
+      $output .= '<ol>';
+      $output .= '<li>'.t('If you are uploading JPEGs, make sure to enable the JPEGmini add on in your Cloudinary account. This can be found in "Add-Ons."').'</li>';
+      $output .= '<li>'.t('Drupal will create a "Transformation" for each image style that uses Cloudinary.').'</li>';
+      $output .= '</ol>';
+      return $output;
+  }
+}
+/**
+ * Implements hook_menu().
+ *
+ * Defines a menu for Cloudinary settings.
+ */
+function cloudinary_menu() {
+  $items = array();
+
+  $items['admin/config/media/cloudinary'] = array(
+    'title' => 'Cloudinary management',
+    'description' => 'Configure Cloudinary',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('cloudinary_settings_form'),
+    'access arguments' => array('administer cloudinary'),
+    'file' => 'cloudinary.admin.inc',
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ *
+ * Defines a single new permission - _administer cloudinary which determines if
+ * you can get to the settings page.
+ *
+ * @return array
+ */
+function cloudinary_permission() {
+  return array(
+    'administer cloudinary' => array(
+      'title' => t('Administer Cloudinary'),
+      'description' => t('Perform administration tasks for Cloudinary.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_entity_presave().
+ *
+ * If the entity being saved is a file, upload to Cloudinary.
+ * Then reconstruct the uri to use the form cloudinary://id/[cloudinary-id]/ext/[original-file-extension]/original/[original-uri]
+ * The file is still saved in Drupal as usual.
+ */
+function cloudinary_entity_presave($entity, $type) {
+
+  if ($type == 'file' && $entity->type == 'image' && $entity->status == FILE_STATUS_PERMANENT) {
+
+		$scheme = file_uri_scheme($entity->uri);
+		if ($scheme == 'cloudinary') return;
+  	
+  	// Need to resolve uri before passing it to cloudinary to process  	
+    $entity->uri = _cloudinary_file_upload($entity->uri);
+    $entity->destination = $entity->uri;
+  }
+}
+
+/**
+ * Internal function to remove the file extension.
+ *
+ * @param $filename
+ * @return string
+ */
+function _cloudinary_strip_extension($filename) {
+  $pieces = explode('.', $filename);
+  unset($pieces[count($pieces) - 1]);
+  $new_filename = implode('.', $pieces);
+  return $new_filename;
+}
+
+/**
+ * Initialise Cloudinary connection.
+ * Gets the API keys from settings and configures the Cloudinary class.
+ */
+function _cloudinary_initialize() {
+  $initialized = & drupal_static('cloudinary_initialised', FALSE);
+  if ($initialized) {
+    return;
+  }
+  $api_key = variable_get('cloudinary_api_key', '');
+  $api_secret = variable_get('cloudinary_api_secret', '');
+  $api_cloud_name = variable_get('cloudinary_api_cloud_name', '');
+  Cloudinary::config_from_url(sprintf('cloudinary://%s:%s@%s', $api_key, $api_secret, $api_cloud_name));
+  $initialized = TRUE;
+}
+
+function _cloudinary_extract_uri_elements($uri) {
+	
+	// Retrieve normal image url
+	$url_parameters = drupal_parse_url($uri);
+	$path = $url_parameters['path'];
+	
+	// Retrieve the scheme if possible
+	$url_parameters['scheme'] = file_uri_scheme($path);
+	
+	// If available, strip it off our path
+	if (strlen($url_parameters['scheme']) > 0) $path = substr($path, strlen($url_parameters['scheme']) + 3);
+	$url_parameters['path_pieces'] = explode('/', $path);
+	
+	// Extract final piece so that we can extract file extension
+	$final_path_piece = $url_parameters['path_pieces'][count($url_parameters['path_pieces']) - 1];	
+	$cloudinary_id = _cloudinary_strip_extension($final_path_piece);
+
+	$url_parameters['extension'] = (strlen($final_path_piece) - strlen($cloudinary_id)) > 1 ? substr($final_path_piece, strlen($cloudinary_id) + 1) : 'png'; 
+	$url_parameters['path_pieces'][count($url_parameters['path_pieces']) - 1] = $cloudinary_id;
+	
+	return $url_parameters;
+}
+
+/**
+ * Wrapper function around the Cloudinary class which uploads the image.
+ * @param $image
+ * @param $id
+ */
+function _cloudinary_file_upload($image_uri) {
+	
+	$url_parameters = _cloudinary_extract_uri_elements($image_uri);
+	
+  $cloudinary_id = implode('/', $url_parameters['path_pieces']);
+
+  _cloudinary_initialize();
+
+  $file_real_path = drupal_realpath($image_uri);
+  \Cloudinary\Uploader::upload($file_real_path, array("public_id" => $cloudinary_id));
+
+  $extension = $url_parameters['extension'];
+  
+  $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($cloudinary_id), urlencode($extension), urlencode($image_uri));
+  
+  return $cloudinary_uri;
+}
+
+/**
+ * Implements hook_image_effect_info()
+ * Define a new image effect type that will appear in the image effects dropdown.
+ *
+ */
+function cloudinary_image_effect_info() {
+  $effects = array();
+
+  $effects['cloudinary_crop'] = array(
+    'label' => t('Cloudinary'),
+    'help' => t('Applies cloudinary effects'),
+    'effect callback' => 'cloudinary_empty_effect',
+    'dimensions passthrough' => TRUE,
+    'summary theme' => 'cloudinary_crop_summary',
+    'form callback' => 'cloudinary_crop_form',
+  );
+
+  return $effects;
+}
+
+/**
+ * Settings form for the Cloudinary image effect.
+ * Includes all of the parameters available to manipulate an image in Cloudinary.
+ * @param $data
+ * @return mixed
+ */
+function cloudinary_crop_form($data) {
+  $form['crop'] = array(
+    '#type' => 'select',
+    '#title' => t('Crop Type'),
+    '#options' => array(
+      'crop' => 'crop',
+      'fill' => 'fill',
+      'lfill' => 'lfill',
+      'scale' => 'scale',
+      'fit' => 'fit',
+      'limit' => 'limit',
+      'pad' => 'pad',
+      'lpad' => 'lpad',
+      'thumb' => 'thumb',
+    ),
+    '#default_value' => isset($data['crop']) ? $data['crop'] : 'scale',
+  );
+
+  $form['width'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Width (pixels or percentage, such as 0.1)'),
+    '#default_value' => isset($data['width']) ? $data['width'] : '1.0',
+    '#size' => 10,
+  );
+  $form['height'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Height (pixels or percentage, such as 0.1)'),
+    '#default_value' => isset($data['height']) ? $data['height'] : '1.0',
+    '#size' => 10,
+  );
+
+  $form['gravity'] = array(
+    '#type' => 'select',
+    '#title' => t('Gravity'),
+    '#default_value' => isset($data['gravity']) ? $data['gravity'] : '',
+    '#options' => array(
+      '' => '',
+      'center' => 'center',
+      'north_west' => 'north_west',
+      'north' => 'north',
+      'north_east' => 'north_east',
+      'east' => 'east',
+      'south_east' => 'south_east',
+      'south' => 'south',
+      'south_west' => 'south_west',
+      'west' => 'west',
+      'xy_center' => 'xy_center',
+      'face' => 'face',
+      'face:center' => 'face:center',
+      'face (thumb)' => 'face (thumb)',
+      'faces' => 'faces',
+      'faces:center' => 'faces:center',
+    ),
+  );
+
+  $form['x'] = array(
+    '#type' => 'textfield',
+    '#title' => t('X'),
+    '#default_value' => isset($data['x']) ? $data['x'] : '',
+    '#size' => 10,
+  );
+
+  $form['y'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Y'),
+    '#default_value' => isset($data['y']) ? $data['y'] : '',
+    '#size' => 10,
+  );
+
+  $form['radius'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Radius (rounded corners radius in px, or max)'),
+    '#default_value' => isset($data['radius']) ? $data['radius'] : '',
+    '#size' => 10,
+  );
+
+  $form['effect'] = array(
+    '#type' => 'select',
+    '#title' => t('Effect'),
+    '#options' => array(
+  		'' => '',
+      'grayscale' => 'grayscale',
+      'blackwhite' => 'blackwhite',
+      'oil_paint' => 'oil paint',
+      'negate' => 'negate',
+      'vignette' => 'vignette',
+      'sepia' => 'sepia',
+      'sepia:50' => 'sepia:50',
+      'brightness:60' => 'brightness:60',
+      'brightness:-40' => 'brightness:-40',
+      'auto_brightness' => 'auto_brightness',
+      'fill_light' => 'fill_light',
+      'saturation:70' => 'saturation:70',
+      'saturation:-50' => 'saturation:-50',
+      'pixelate' => 'pixelate',
+      'pixelate:3' => 'pixelate:3',
+      'pixelate_region' => 'pixelate_region',
+      'pixelate_region:20' => 'pixelate_region:20',
+      'pixelate_faces' => 'pixelate_faces',
+      'pixelate_faces:3' => 'pixelate_faces:3',
+      'gradient_fade' => 'gradient_fade',
+      'blur' => 'blur',
+      'blur:300' => 'blur:300',
+      'blur_region' => 'blur_region',
+      'blur_faces' => 'blur_faces',
+      'sharpen' => 'sharpen',
+      'sharpen:400' => 'sharpen:400',
+      'unsharp_mask' => 'unsharp_mask',
+      'unsharp_mask:400' => 'unsharp_mask:400',
+      'contrast:90' => 'contrast:90',
+      'contrast:-70' => 'contrast:-70',
+      'auto_contrast' => 'auto_contrast',
+      'vibrance' => 'vibrance',
+      'vibrance:70' => 'vibrance:70',
+      'red:50' => 'red:50',
+      'green:50' => 'green:50',
+      'blue:90' => 'blue:90',
+      'auto_color' => 'auto_color',
+      'improve' => 'improve',
+      'screen' => 'screen',
+      'multiply' => 'multiply',
+      'make_transparent' => 'make_transparent',
+      'trim' => 'trim',
+    ),
+    '#default_value' => isset($data['effect']) ? $data['effect'] : '',
+  );
+
+  return $form;
+}
+
+function cloudinary_empty_effect(&$image, $data) {
+  // Does nothing, this is a template effect
+  return TRUE;
+}
+
+/**
+ * Theme function for Cloudinary effect explaining to the developer which effects will be applied.
+ * @param $variables
+ * @return null|string
+ */
+function theme_cloudinary_crop_summary($variables) {
+  return t('Image will have cloudinary effects applied, using crop : @crop, to the size of @widthx@height, using effect @effect', array(
+    '@crop' => $variables['data']['crop'],
+    '@width' => $variables['data']['width'],
+    '@height' => $variables['data']['height'],
+    '@effect' => $variables['data']['effect']
+  ));
+}
+
+/**
+ * Implements hook_theme().
+ */
+function cloudinary_theme() {
+  return array(
+    'cloudinary_crop_summary' => array(
+      'variables' => array('data' => NULL),
+    ),
+    'image_formatter_cloudinary' => array(
+      'variables' => array(
+        'item' => NULL,
+        'path' => NULL,
+        'image_style' => NULL,
+    		'image_rendered_as_src' => false,
+      ),
+    ),
+    'image_style_cloudinary' => array(
+      'variables' => array(
+        'image_style' => NULL
+      ),
+    ),
+    'image_cloudinary' => array(
+      'variables' => array('transformations' => array()),
+    ),
+    'image_style_src_cloudinary' => array(
+      'variables' => array(
+        'image_style' => NULL
+      ),
+    ),
+    'image_src_cloudinary' => array(
+      'variables' => array('transformations' => array()),
+    ),
+  );
+}
+
+/**
+ * Implements hook_stream_wrappers().
+ */
+function cloudinary_stream_wrappers() {
+  return array(
+    'cloudinary' => array(
+      'name' => t('Cloudinary hosted images'),
+      'class' => 'MediaCloudinaryStreamWrapper',
+      'description' => t('Images hosted on Cloudinary'),
+      'type' => STREAM_WRAPPERS_READ_VISIBLE,
+    ),
+  );
+}
+
+function cloudinary_media_format_form_prepare_alter(&$form, &$form_state, $media) {
+  $settings = array('autosubmit' => ($media->type == "image"));
+  drupal_add_js(array('media_format_form' => $settings), 'setting');
+}
+
+function cloudinary_ctools_plugin_api($owner, $api) {
+  static $api_versions = array(
+    'file_entity' => array(
+      'file_default_displays' => 1,
+    ),
+  );
+  if (isset($api_versions[$owner][$api])) {
+    return array('version' => $api_versions[$owner][$api]);
+  }
+}
+
+/**
+ * Implements hook_file_default_displays().
+ */
+function cloudinary_file_default_displays() {
+  $default_displays = array();
+
+  // Default settings for displaying a video preview image. We enable preview
+  // images even for view modes that also play video, for use inside a running
+  // WYSIWYG editor. The higher weight ensures that the video display is used
+  // where possible.
+  $default_image_styles = array(
+    'media_preview' => 'square_thumbnail',
+    'media_large' => 'large',
+    'media_original' => ''
+  );
+  foreach ($default_image_styles as $view_mode => $image_style) {
+    $display_name = 'image__' . $view_mode . '__cloudinary_image';
+    $default_displays[$display_name] = (object) array(
+      'api_version' => 1,
+      'name' => $display_name,
+      'status' => 1,
+      'weight' => 2,
+      'settings' => array('image_style' => $image_style),
+    );
+  }
+  return $default_displays;
+}
+
+/**
+ * Implements hook_file_mimetype_mapping_alter().
+ *
+ * Register the image/cloudinary mimetype.
+ */
+function cloudinary_file_mimetype_mapping_alter(&$mapping) {
+  $mapping['mimetypes'][] = 'image/cloudinary';
+}
+
+  
