@@ -6,6 +6,8 @@ dependencies[] = media
 dependencies[] = media_internet
 dependencies[] = views
 dependencies[] = image
+dependencies[] = entity
+
 
 core = 7.x
 version = 7.x-1.0-alpha1
@@ -17,3 +19,4 @@ files[] = includes/cloudinary.styles.inc
 files[] = cloudinary.module
 files[] = cloudinary.field.inc
 files[] = cloudinary.admin.inc
+files[] = cloudinary.theme.inc

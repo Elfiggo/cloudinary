@@ -12,7 +12,7 @@ function cloudinary_settings_form() {
     '#title' => t('Cloudinary API Settings'),
     '#weight' => 5,
     '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
+    '#collapsed' => TRUE,
     '#description' => t("The information for this page can be found on your Cloudinary dashboard, <a href='https://cloudinary.com/console'>here</a>"),
   );
 
@@ -36,4 +36,155 @@ function cloudinary_settings_form() {
   );
 
   return system_settings_form($form);
+}
+
+function cloudinary_context_mapping_settings_form($form, &$form_state) {
+
+        // Output all current mappings and give option to clear
+    // Clearing is permanent
+    $form['cloudinary_context_mapping_settings_form_fieldset'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Cloudinary Context Field Mapping Settings'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#description' => t("A collection of field mappings that will be used to extract the values of fields during upload and inserted into the image context in Cloudinary"),
+    );
+    
+    
+    // Output all current mappings and give option to clear
+    // Clearing is permanent
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_display_field_mapping_fieldset'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('View Current Cloudinary Context Field Mappings'),
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+      '#description' => t("A collection of field mappings that will be used to extract the values of fields during upload and inserted into the image context in Cloudinary"),
+    );
+
+    $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt","field_file_image_title_text" => "caption"));
+    $context_mapping_row_data = array();
+    foreach ($context_mapping as $field_id => $cloudinary_context_id) {
+        $context_mapping_row_data[] = array($field_id, $cloudinary_context_id);
+    }
+
+    $mapping_table = array(
+      'header' => array('Field Machine Name', 'Context Key'),
+      'rows' => $context_mapping_row_data,
+      'attributes' => array()
+    );
+
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_display_field_mapping_fieldset']['field_mappings'] = array(
+      '#markup' => theme('table', $mapping_table)
+    );
+
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_display_field_mapping_fieldset']['clear'] = array(
+      '#type' => 'submit',
+      '#value' => t('Clear all mappings'),
+    );
+
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_add_to_field_mapping_fieldset'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Add field mapping to Cloudinary Context Field Mapping Settings'),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#description' => t("A collection of field mappings that will be used to extract the values of fields during upload and inserted into the image context in Cloudinary"),
+    );
+    
+    $file_entity_image_fields = _cloudinary_retrieve_file_entity_image_fields();
+    $file_entity_image_fields = drupal_map_assoc($file_entity_image_fields);
+
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_add_to_field_mapping_fieldset']['file_entity_image_field'] = array(
+      '#type' => 'select',
+      '#title' => t('Field Machine Name'),
+      '#options' => $file_entity_image_fields,
+      '#description' => t("Field from which to extract data"),
+    );
+    
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_add_to_field_mapping_fieldset']['cloudinary_context_key'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Cloudinary Context Key'),
+      '#description' => t("Key to use when transferring data to cloudinary for this field (e.g. alt, caption etc)"),
+    );
+    
+    $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_add_to_field_mapping_fieldset']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Add/Update mapping'),
+    );
+
+    $form['#submit'][] = 'cloudinary_context_mapping_settings_form_submit';
+  
+    return $form;
+}
+
+function cloudinary_context_mapping_settings_form_submit($form, &$form_state) {
+
+  if ($form_state['values']['op'] == 'Add/Update mapping') {
+      // Current configuration
+      $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt", "field_file_image_title_text" => "caption"));
+      
+      $file_entity_image_field = $form_state['values']['file_entity_image_field'];
+      $cloudinary_context_key = $form_state['values']['cloudinary_context_key'];
+      
+      // If you set an empty context key and assign it to a field, remove the field
+      if (strlen($cloudinary_context_key) == 0 && !empty($context_mapping[$file_entity_image_field])) unset($context_mapping[$file_entity_image_field]);
+      // Else, add the mapping
+      else $context_mapping[$file_entity_image_field] = $cloudinary_context_key;
+      
+      variable_set('cloudinary_field_mappings', $context_mapping);
+      drupal_set_message(t('The context field mapping configuration has been saved.'));
+  }
+  if ($form_state['values']['op'] == 'Clear all mappings') {
+      variable_set('cloudinary_field_mappings', array());
+      drupal_set_message(t('The context field mapping configuration has been cleared completely.'));
+  }
+  
+}
+
+function _cloudinary_retrieve_file_entity_image_fields() {
+    $all_fields = field_info_fields();
+    $file_entity_image_fields = array();
+    foreach ($all_fields as $machine_name => $field_info) {
+        $bundles = array_keys($field_info['bundles']);
+        if (in_array('file', $bundles) && in_array('image', $field_info['bundles']['file'])) $file_entity_image_fields[] = $machine_name;
+    }
+    
+    return $file_entity_image_fields;
+}
+
+function cloudinary_folder_settings_form($form, &$form_state) {
+    
+  $form['cloudinary_folder_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Cloudinary Folder Field Mapping Setting'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#description' => t("A field mappings that will be used to extract the values of a field during upload to set the folder of the image in Cloudinary"),
+  );
+  
+  $file_entity_image_fields = _cloudinary_retrieve_file_entity_image_fields();
+  array_unshift($file_entity_image_fields, '');
+  $file_entity_image_fields = drupal_map_assoc($file_entity_image_fields);
+  
+  $form['cloudinary_folder_fieldset']['cloudinary_folder'] = array(
+    '#type' => 'select',
+    '#title' => t('Folder'),
+    '#options' => $file_entity_image_fields,
+    '#default_value' => variable_get('cloudinary_folder', ''),
+    '#description' => t("Field that designates the Folder to upload the image to."),
+  );
+
+  $form['cloudinary_folder_fieldset']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save folder configuration'),
+  );
+  
+  $form['#submit'][] = 'cloudinary_folder_settings_form_submit';
+  return $form;
+}
+
+function cloudinary_folder_settings_form_submit($form, &$form_state) {
+
+  variable_set('cloudinary_folder', $form_state['values']['cloudinary_folder']);
+  
+  drupal_set_message(t('The folder configuration has been saved.'));
 }

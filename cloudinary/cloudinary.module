@@ -46,12 +46,21 @@ function cloudinary_menu() {
   $items['admin/config/media/cloudinary'] = array(
     'title' => 'Cloudinary management',
     'description' => 'Configure Cloudinary',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('cloudinary_settings_form'),
+    'page callback' => 'cloudinary_settings_page',
     'access arguments' => array('administer cloudinary'),
     'file' => 'cloudinary.admin.inc',
   );
   return $items;
+}
+
+function cloudinary_settings_page() {
+    $items = array(
+      'cloudinary_general_settings_form' => drupal_get_form('cloudinary_settings_form'),
+      'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
+      'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
+    );
+
+    return $items;
 }
 
 /**
@@ -82,11 +91,31 @@ function cloudinary_entity_presave($entity, $type) {
 
   if ($type == 'file' && $entity->type == 'image' && $entity->status == FILE_STATUS_PERMANENT) {
 
-		$scheme = file_uri_scheme($entity->uri);
-		if ($scheme == 'cloudinary') return;
-  	
-  	// Need to resolve uri before passing it to cloudinary to process  	
-    $entity->uri = _cloudinary_file_upload($entity->uri);
+    $scheme = file_uri_scheme($entity->uri);
+    if ($scheme == 'cloudinary') return;
+
+    $entity_metadata_wrapper = entity_metadata_wrapper($type, $entity);
+    $entity_property_info = $entity_metadata_wrapper->getPropertyInfo();
+    
+    $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt", "field_file_image_title_text" => "caption"));
+
+    $context = array();
+    
+    // Use mapping details to extract contextural information
+    foreach ($context_mapping as $field_id => $cloudinary_context_id) {
+        $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
+    }
+    
+    // Use folder field machine name to extract folder information, types support : text and taxonomy_term
+    $folder_field_id =  variable_get('cloudinary_folder', '');
+    if (strlen($folder_field_id) > 0) {
+        if ($entity_property_info[$folder_field_id]['type'] == 'text') $folder = $entity_metadata_wrapper->{$folder_field_id}->value();
+        else if ($entity_property_info[$folder_field_id]['type'] == 'taxonomy_term') $folder = $entity_metadata_wrapper->{$folder_field_id}->value()->name;
+    }
+    else $folder = '';
+
+    // Need to resolve uri before passing it to cloudinary to process  	
+    $entity->uri = _cloudinary_file_upload($entity->uri, $context, $folder);
     $entity->destination = $entity->uri;
   }
 }
@@ -148,22 +177,34 @@ function _cloudinary_extract_uri_elements($uri) {
  * @param $image
  * @param $id
  */
-function _cloudinary_file_upload($image_uri) {
+function _cloudinary_file_upload($image_uri, $context = array(), $folder = '') {
 	
-	$url_parameters = _cloudinary_extract_uri_elements($image_uri);
+    $url_parameters = _cloudinary_extract_uri_elements($image_uri);
 	
-  $cloudinary_id = implode('/', $url_parameters['path_pieces']);
+    $cloudinary_id = implode('/', $url_parameters['path_pieces']);
 
-  _cloudinary_initialize();
+    _cloudinary_initialize();
 
-  $file_real_path = drupal_realpath($image_uri);
-  \Cloudinary\Uploader::upload($file_real_path, array("public_id" => $cloudinary_id));
+    $file_real_path = drupal_realpath($image_uri);
 
-  $extension = $url_parameters['extension'];
-  
-  $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($cloudinary_id), urlencode($extension), urlencode($image_uri));
-  
-  return $cloudinary_uri;
+    $options = array(
+      "public_id" => $cloudinary_id
+    );
+
+    // Add additional parameters where required
+    if (count($context) > 0) $options['context'] = $context;
+    if (strlen($folder) > 0) $options['folder'] = $folder;
+
+    \Cloudinary\Uploader::upload($file_real_path, $options);
+
+    $extension = $url_parameters['extension'];
+
+    // Caveat - when uploading using a folder, the folder will automatically be appended to the beginning of the id on the cloudinary side
+    if (strlen($folder) > 0) $cloudinary_id = implode('/', array($folder, $cloudinary_id));
+
+    $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($cloudinary_id), urlencode($extension), urlencode($image_uri));
+
+    return $cloudinary_uri;
 }
 
 /**
@@ -443,4 +484,44 @@ function cloudinary_file_mimetype_mapping_alter(&$mapping) {
   $mapping['mimetypes'][] = 'image/cloudinary';
 }
 
-  
+/**
+ * Returns the URL for a cloudinary image given a style and filename.
+ *
+ * @param $style_name
+ *   The name of the style to be used with this image.
+ * @param $filename
+ *   The filename of the image.
+ *
+ * @return
+ *   The absolute URL where a style image can be downloaded.
+ */
+function cloudinary_style_url($style_name, $filename) {
+  $variables = array();
+
+  $style = image_style_load($style_name);
+
+  $scheme = file_uri_scheme($filename);
+  if ($scheme == 'cloudinary') {
+    $wrapper = file_stream_wrapper_get_instance_by_uri($filename);
+    $properties = $wrapper->get_parameters();
+
+    $variables['cloudinary_id'] = $properties['id'];
+    $variables['extension'] = $properties['ext'];
+
+    $transformations = array();
+    if (is_array($style) && array_key_exists('effects',$style)){
+      foreach ($style['effects'] as $effect) {
+        foreach ($effect['data'] as $key => $value) {
+          if ($value == '') {
+            unset($effect['data'][$key]);
+          }
+        }
+        $transformations[] = $effect['data'];
+      }
+    }
+    $variables['transformations'] = $transformations;
+    return theme('image_src_cloudinary', $variables);
+  }
+
+  return image_style_url($style, $filename);
+}  
