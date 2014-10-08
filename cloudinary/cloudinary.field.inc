@@ -11,7 +11,7 @@ function cloudinary_field_formatter_info() {
     'cloudinary_image' => array(
       'label' => t('Cloudinary Image'),
       'field types' => array('image'),
-      'settings' => array('image_style' => '', 'image_link' => '', 'image_rendered_as_src' => false),
+      'settings' => array('horizontal_image_style' => '', 'vertical_image_style' => '', 'image_link' => '', 'image_rendered_as_src' => false),
     ),
   );
 
@@ -93,10 +93,18 @@ function cloudinary_field_formatter_settings_form($field, $instance, $view_mode,
   $settings = $display['settings'];
 
   $image_styles = image_style_options(FALSE, PASS_THROUGH);
-  $element['image_style'] = array(
-    '#title' => t('Image style'),
+  $element['horizontal_image_style'] = array(
+    '#title' => t('Horizontal Image style'),
     '#type' => 'select',
-    '#default_value' => $settings['image_style'],
+    '#default_value' => $settings['horizontal_image_style'],
+    '#empty_option' => t('None (original image)'),
+    '#options' => $image_styles,
+  );
+  
+  $element['vertical_image_style'] = array(
+    '#title' => t('Vertical Image style'),
+    '#type' => 'select',
+    '#default_value' => $settings['vertical_image_style'],
     '#empty_option' => t('None (original image)'),
     '#options' => $image_styles,
   );
@@ -139,8 +147,13 @@ function cloudinary_field_formatter_settings_summary($field, $instance, $view_mo
 
   // Styles could be lost because of enabled/disabled modules that defines
   // their styles in code.
-  if (isset($image_styles[$settings['image_style']])) {
-    $summary[] = t('Image Style: @style and hosted on Cloudinary', array('@style' => $image_styles[$settings['image_style']]));
+  
+  if (isset($image_styles[$settings['horizontal_image_style']]) || isset($image_styles[$settings['vertical_image_style']])) {
+    $summary[] = t('Image Styles (Horizontal/Vertical): @horizontal_image_style, @vertical_image_style and hosted on Cloudinary',
+        array(
+            '@horizontal_image_style' => isset($image_styles[$settings['horizontal_image_style']]) ? $image_styles[$settings['horizontal_image_style']] : 'original (unstyled)',
+            '@vertical_image_style' => isset($image_styles[$settings['vertical_image_style']]) ? $image_styles[$settings['vertical_image_style']] : 'original (unstyled)',
+        ));
   }
   else {
     $summary[] = t('Original Image hosted on Cloudinary ');
@@ -184,10 +197,13 @@ function cloudinary_field_formatter_view($entity_type, $entity, $field, $instanc
       );
     }
     
+    $style_selected = $item['metadata']['width'] >= $item['metadata']['height'] ? 'horizontal_image_style' : 'vertical_image_style';
+    $image_style = $display['settings'][$style_selected];
+    
     $element[$delta] = array(
       '#theme' => 'image_formatter_cloudinary',
       '#item' => $item,
-      '#image_style' => $display['settings']['image_style'],
+      '#image_style' => $image_style,
       '#path' => isset($uri) ? $uri : '',
     	'#image_rendered_as_src' => $display['settings']['image_rendered_as_src'],
     );
