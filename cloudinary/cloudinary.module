@@ -103,9 +103,10 @@ function cloudinary_entity_presave($entity, $type) {
     
     // Use mapping details to extract contextural information
     foreach ($context_mapping as $field_id => $cloudinary_context_id) {
-        $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
+        if ($entity_property_info[$field_id]['type'] == 'text') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
+        else if ($entity_property_info[$field_id]['type'] == 'taxonomy_term') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value()->name;
     }
-    
+
     // Use folder field machine name to extract folder information, types support : text and taxonomy_term
     $folder_field_id =  variable_get('cloudinary_folder', '');
     if (strlen($folder_field_id) > 0) {
