@@ -19,4 +19,5 @@ files[] = includes/cloudinary.styles.inc
 files[] = cloudinary.module
 files[] = cloudinary.field.inc
 files[] = cloudinary.admin.inc
+files[] = cloudinary.api.batch.inc
 files[] = cloudinary.theme.inc

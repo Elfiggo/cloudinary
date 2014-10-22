@@ -199,7 +199,7 @@ function cloudinary_field_formatter_view($entity_type, $entity, $field, $instanc
     
     $style_selected = $item['metadata']['width'] >= $item['metadata']['height'] ? 'horizontal_image_style' : 'vertical_image_style';
     $image_style = $display['settings'][$style_selected];
-    
+
     $element[$delta] = array(
       '#theme' => 'image_formatter_cloudinary',
       '#item' => $item,

@@ -188,3 +188,31 @@ function cloudinary_folder_settings_form_submit($form, &$form_state) {
   
   drupal_set_message(t('The folder configuration has been saved.'));
 }
+
+function cloudinary_batch_processing_form($form, &$form_state) {
+    
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Batch process Images into Cloudinary'),
+  );
+  $form['#submit'][] = 'cloudinary_batch_processing_form_submit';
+  return $form;
+}
+
+function cloudinary_batch_processing_form_submit($form, &$form_state) {
+  
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'file')
+        ->entityCondition('bundle', 'image');
+  $result = $query->execute();
+  
+  if (isset($result['file'])) {
+    $file_ids = array_keys($result['file']);
+    
+    $packets = _cloudinary_parcel_into_packets($file_ids, 5);
+    
+    _cloudinary_perform_batch_update($packets, count($file_ids));
+  }  
+
+  drupal_set_message(t('Batch processing complete.'));
+}

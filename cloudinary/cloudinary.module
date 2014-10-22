@@ -4,6 +4,7 @@ include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib
 include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib/src/Uploader.php';
 include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib/src/Api.php';
 include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/cloudinary.field.inc';
+include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/cloudinary.api.batch.inc';
 
 /**
  * Implements hook_help().
@@ -58,6 +59,7 @@ function cloudinary_settings_page() {
       'cloudinary_general_settings_form' => drupal_get_form('cloudinary_settings_form'),
       'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
       'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
+      'cloudinary_batch_processing_form' => drupal_get_form('cloudinary_batch_processing_form'),
     );
 
     return $items;
@@ -90,11 +92,16 @@ function cloudinary_permission() {
 function cloudinary_entity_presave($entity, $type) {
 
   if ($type == 'file' && $entity->type == 'image' && $entity->status == FILE_STATUS_PERMANENT) {
+    _cloudinary_save_file_image_to_cloudinary_and_update_entity($entity);
+  }
+}
+
+function _cloudinary_save_file_image_to_cloudinary_and_update_entity($entity) {
 
     $scheme = file_uri_scheme($entity->uri);
     if ($scheme == 'cloudinary') return;
 
-    $entity_metadata_wrapper = entity_metadata_wrapper($type, $entity);
+    $entity_metadata_wrapper = entity_metadata_wrapper('file', $entity);
     $entity_property_info = $entity_metadata_wrapper->getPropertyInfo();
     
     $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt", "field_file_image_title_text" => "caption"));
@@ -103,22 +110,21 @@ function cloudinary_entity_presave($entity, $type) {
     
     // Use mapping details to extract contextural information
     foreach ($context_mapping as $field_id => $cloudinary_context_id) {
-        if ($entity_property_info[$field_id]['type'] == 'text') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
-        else if ($entity_property_info[$field_id]['type'] == 'taxonomy_term') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value()->name;
+        if (!empty($entity_property_info[$field_id]['type']) && $entity_property_info[$field_id]['type'] == 'text') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
+        else if (!empty($entity_property_info[$field_id]['type']) && $entity_property_info[$field_id]['type'] == 'taxonomy_term') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value()->name;
     }
 
     // Use folder field machine name to extract folder information, types support : text and taxonomy_term
     $folder_field_id =  variable_get('cloudinary_folder', '');
     if (strlen($folder_field_id) > 0) {
-        if ($entity_property_info[$folder_field_id]['type'] == 'text') $folder = $entity_metadata_wrapper->{$folder_field_id}->value();
-        else if ($entity_property_info[$folder_field_id]['type'] == 'taxonomy_term') $folder = $entity_metadata_wrapper->{$folder_field_id}->value()->name;
+        if (!empty($entity_property_info[$folder_field_id]['type']) && $entity_property_info[$folder_field_id]['type'] == 'text') $folder = $entity_metadata_wrapper->{$folder_field_id}->value();
+        else if (!empty($entity_property_info[$folder_field_id]['type']) && $entity_property_info[$folder_field_id]['type'] == 'taxonomy_term') $folder = $entity_metadata_wrapper->{$folder_field_id}->value()->name;
     }
     else $folder = '';
 
     // Need to resolve uri before passing it to cloudinary to process  	
     $entity->uri = _cloudinary_file_upload($entity->uri, $context, $folder);
     $entity->destination = $entity->uri;
-  }
 }
 
 /**
