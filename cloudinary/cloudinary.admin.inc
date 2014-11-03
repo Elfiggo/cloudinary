@@ -50,7 +50,6 @@ function cloudinary_context_mapping_settings_form($form, &$form_state) {
       '#description' => t("A collection of field mappings that will be used to extract the values of fields during upload and inserted into the image context in Cloudinary"),
     );
     
-    
     // Output all current mappings and give option to clear
     // Clearing is permanent
     $form['cloudinary_context_mapping_settings_form_fieldset']['cloudinary_display_field_mapping_fieldset'] = array(
@@ -135,6 +134,7 @@ function cloudinary_context_mapping_settings_form_submit($form, &$form_state) {
   }
   if ($form_state['values']['op'] == 'Clear all mappings') {
       variable_set('cloudinary_field_mappings', array());
+      entity_info_cache_clear();
       drupal_set_message(t('The context field mapping configuration has been cleared completely.'));
   }
   
@@ -212,7 +212,21 @@ function cloudinary_batch_processing_form_submit($form, &$form_state) {
     $packets = _cloudinary_parcel_into_packets($file_ids, 5);
     
     _cloudinary_perform_batch_update($packets, count($file_ids));
+    drupal_set_message(t('Batch processing complete.'));
   }  
-
-  drupal_set_message(t('Batch processing complete.'));
 }
+
+function cloudinary_import_form($form, &$form_state) {
+  
+  $form['cloudinary_public_id'] = array(
+    '#type' => 'textfield',
+    '#default_value' => '',
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Import data from Cloudinary.'),
+  );
+
+  return $form;
+}
+

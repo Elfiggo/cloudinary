@@ -8,16 +8,19 @@ dependencies[] = views
 dependencies[] = image
 dependencies[] = entity
 
-
 core = 7.x
 version = 7.x-1.0-alpha1
 configure = admin/config/media/cloudinary
 
 files[] = includes/MediaCloudinaryStreamWrapper.inc
-files[] = includes/MediaCloudinaryStyles.inc
-files[] = includes/cloudinary.styles.inc
+files[] = includes/MediaCloudinaryBrowserView.inc
+files[] = includes/MediaCloudinaryBrowserDisplayPlugin.inc
+files[] = includes/MediaCloudinaryBrowserStylePlugin.inc
+
 files[] = cloudinary.module
 files[] = cloudinary.field.inc
 files[] = cloudinary.admin.inc
 files[] = cloudinary.api.batch.inc
 files[] = cloudinary.theme.inc
+files[] = cloudinary.views.inc
+files[] = cloudinary.entity.inc

@@ -5,6 +5,7 @@ include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib
 include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/lib/src/Api.php';
 include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/cloudinary.field.inc';
 include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/cloudinary.api.batch.inc';
+include_once DRUPAL_ROOT . '/' . drupal_get_path('module', 'cloudinary') . '/cloudinary.entity.inc';
 
 /**
  * Implements hook_help().
@@ -43,7 +44,13 @@ function cloudinary_help($path, $arg) {
  */
 function cloudinary_menu() {
   $items = array();
-
+  
+  $items['cloudinary/create'] = array(
+    'page callback' => '_cloudinary_import_media',
+    'access arguments' => array('import cloudinary media'),
+    'type' => MENU_LOCAL_TASK,
+  );
+  
   $items['admin/config/media/cloudinary'] = array(
     'title' => 'Cloudinary management',
     'description' => 'Configure Cloudinary',
@@ -60,6 +67,7 @@ function cloudinary_settings_page() {
       'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
       'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
       'cloudinary_batch_processing_form' => drupal_get_form('cloudinary_batch_processing_form'),
+      'cloudinary_import_form' => drupal_get_form('cloudinary_import_form'),
     );
 
     return $items;
@@ -78,6 +86,10 @@ function cloudinary_permission() {
     'administer cloudinary' => array(
       'title' => t('Administer Cloudinary'),
       'description' => t('Perform administration tasks for Cloudinary.'),
+    ),
+    'import cloudinary media' => array(
+      'title' => t('Import media files from Cloudinary'),
+      'description' => t('Cloudinary file importer'),
     ),
   );
 }
@@ -531,4 +543,260 @@ function cloudinary_style_url($style_name, $filename) {
   }
 
   return image_style_url($style, $filename);
-}  
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function cloudinary_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module','cloudinary'),
+  );
+}
+
+/**
+ * Implements hook_media_browser_plugin_info().
+ *
+ * Commented out for release versions, active in dev versions. To enable the
+ * YouTube media browser tab, uncomment this function.
+ */
+function cloudinary_media_browser_plugin_info() {
+    
+  $info = array();
+  
+  // Add a plugin for each View display using the 'MediaCloudinaryBrowserDisplayPlugin' display type.
+  $view_weight = 10;
+  foreach (views_get_enabled_views() as $view) {
+    foreach ($view->display as $display) {
+      if ($display->display_plugin == 'MediaCloudinaryBrowserDisplayPlugin') {
+        $title = $display->display_title;
+        if (!empty($display->display_options['title'])) {
+          $title = $display->display_options['title'];
+        }
+        $info["{$view->name}--{$display->id}"] = array(
+          'title' => $title,
+          // @TODO make this configurable.
+          'weight' => $view_weight++,
+          'class' => 'MediaCloudinaryBrowserView',
+          'view_name' => $view->name,
+          'view_display_id' => $display->id,
+        );
+      }
+    }
+  }
+
+  return $info;
+}
+
+/**
+ * Implements hook_entity_info().
+ */
+function cloudinary_entity_info() {
+    $return = array(
+      'cloudinary_admin_api' => array(
+        'label' => t('Cloudinary Admin API Entity'),
+        'controller class' => 'CloudinaryAdminAPIEntityController',
+        'entity keys' => array(
+          'id' => 'public_id',
+        ),
+        'module' => 'cloudinary',
+      )
+    );
+    return $return;
+}
+
+/**
+ * Implements hook_entity_property_info().
+ */
+function cloudinary_entity_property_info() {
+    
+    $info['cloudinary_admin_api']['properties'] = array(
+        'public_id' => array(
+          'label' => t('Public ID'),
+          'type' => 'text',
+        ),
+        'format' => array(
+          'label' => t('Format'),
+          'type' => 'text',
+        ),
+        'version' => array(
+          'label' => t('Version'),
+          'type' => 'integer',
+        ),
+        'resource_type' => array(
+          'label' => t('Resource Type'),
+          'type' => 'text',
+        ),
+        'type' => array(
+          'label' => t('Type'),
+          'type' => 'text',
+        ),
+        'created_at' => array(
+          'label' => t('Created at'),
+          'type' => 'date',
+        ),
+        'bytes' => array(
+          'label' => t('Bytes'),
+          'type' => 'integer',
+        ),
+        'width' => array(
+          'label' => t('Width'),
+          'type' => 'integer',
+        ),
+        'height' => array(
+          'label' => t('Height'),
+          'type' => 'integer',
+        ),
+    );
+    
+    $cloudinary_field_mappings = variable_get('cloudinary_field_mappings', array());
+    foreach($cloudinary_field_mappings as $field => $mapping) {
+        $info['cloudinary_admin_api']['properties']['cloudinary_context_' . $mapping] = array(
+          'label' => t('Cloudinary Context - ' . $mapping),
+          'type' => 'text',
+        );
+    }
+    
+    return $info;
+}
+
+function _cloudinary_import_file_entity_from_cloudinary_public_id($cloudinary_id) {
+
+    _cloudinary_initialize();
+    
+    $api = new \Cloudinary\Api();
+    $image_resource = $api->resource(urlencode($cloudinary_id), array('image_metadata' => true));
+    $image_resource_array = get_object_vars($image_resource);
+
+    $extension = $image_resource_array['format'];
+
+    $uri = MediaCloudinaryStreamWrapper::encodeURI($cloudinary_id, $extension);
+    $file_to_be_saved = file_uri_to_object($uri);
+    
+    // Attach preliminary data
+    $file_to_be_saved->metadata = array(
+      'width' => $image_resource_array['width'],
+      'height' => $image_resource_array['height'],
+    );
+    
+    if (!empty($image_resource_array['context']['custom']['caption'])) $file_to_be_saved->filename = $image_resource_array['context']['custom']['caption'];
+    else $file_to_be_saved->filename = $cloudinary_id;
+  
+    file_save($file_to_be_saved);
+    
+    $fid = $file_to_be_saved->fid;
+    $file_loaded = file_load($fid);
+    $file_entity_metadata_wrapper = entity_metadata_wrapper('file', $file_loaded);
+    $file_entity_metadata_wrapper_property_info = $file_entity_metadata_wrapper->getPropertyInfo();    
+
+    $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt","field_file_image_title_text" => "caption"));
+    $context_mapping_row_data = array();
+    foreach ($context_mapping as $field_id => $cloudinary_context_id) {
+        if (!empty($image_resource_array['context']['custom'][$cloudinary_context_id])) {
+
+            switch ($file_entity_metadata_wrapper_property_info[$field_id]['type']) {
+              case 'taxonomy_term' :
+                $vocabulary_identifier = $file_entity_metadata_wrapper_property_info[$field_id]['bundle'];
+
+                $vocabulary = taxonomy_vocabulary_machine_name_load($vocabulary_identifier);
+                  
+                $query = new EntityFieldQuery;
+                $result = $query
+                    ->entityCondition('entity_type', 'taxonomy_term')
+                    ->propertyCondition('name', $image_resource_array['context']['custom'][$cloudinary_context_id])
+                    ->propertyCondition('vid', 1)
+                    ->execute();
+
+                $tid = -1;
+                if (!empty($result['taxonomy_term'])) {
+                    $first_term = reset($result['taxonomy_term']);
+                    $tid = $first_term->tid;
+                }
+
+                if (-1 === $tid) {
+                    // Need to create a new taxonomy term and store the tid
+                    $term = new stdClass();
+                    $term->name = $image_resource_array['context']['custom'][$cloudinary_context_id];
+                    $term->vid = $vocabulary->vid;
+                    taxonomy_term_save($term);
+                    $tid = $term->tid;
+                }
+                
+                $file_entity_metadata_wrapper->$field_id->set($tid);
+                break;
+
+              case 'text' :
+                $file_entity_metadata_wrapper->$field_id->set($image_resource_array['context']['custom'][$cloudinary_context_id]);
+                break;
+            }
+        }
+    }
+
+    $file_entity_metadata_wrapper->save();
+    
+    return $file_loaded;
+}
+
+// JSON Callback for importing a piece of media into the site
+// The USER requires 'import cloudinary media' access to use it
+function _cloudinary_import_media() {
+    
+  $response = new stdClass();
+    
+  // Retrieve public ID
+  if (empty($_POST['data'])){
+    $response->data = null;
+    $response->error = 1;
+    $response->error_message = "No data supplied";
+    drupal_json_output($response);
+    drupal_exit();
+    return;
+  }
+
+  try {
+    $remote_json = $_POST['data'];
+    $data = json_decode($remote_json);
+
+    $variables = get_object_vars($data);
+  }
+  catch (Exception $e) {
+    $response->data = null;
+    $response->error = 2;
+    $response->error_message = $e->getMessage();
+    drupal_json_output($response);
+    drupal_exit();
+    return;
+  }
+  
+  // Retrieve public ID
+  if (empty($variables['cloudinary_public_id'])){
+    $response->data = null;
+    $response->error = 3;
+    $response->error_message = "No Cloudinary Public ID supplied";
+    drupal_json_output($response);
+    drupal_exit();
+    return;
+  }
+  
+  $public_id = $variables['cloudinary_public_id'];
+  
+  try {
+    $new_imported_entity = _cloudinary_import_file_entity_from_cloudinary_public_id($public_id);
+  }
+  catch (Exception $e) {
+    $response->data = null;
+    $response->error = 4;
+    $response->error_message = $e->getMessage();
+    drupal_json_output($response);
+    drupal_exit();
+    return;
+  }
+
+  $response->data = $new_imported_entity;
+  $response->error = 0;
+  $response->error_message = "";
+  
+  drupal_json_output($response);
+  drupal_exit();
+}

@@ -197,7 +197,9 @@ function cloudinary_field_formatter_view($entity_type, $entity, $field, $instanc
       );
     }
     
-    $style_selected = $item['metadata']['width'] >= $item['metadata']['height'] ? 'horizontal_image_style' : 'vertical_image_style';
+    if (!empty($item['metadata']['width']) && !empty($item['metadata']['height'])) $style_selected = $item['metadata']['width'] >= $item['metadata']['height'] ? 'horizontal_image_style' : 'vertical_image_style';
+    else $style_selected = 'horizontal_image_style';
+
     $image_style = $display['settings'][$style_selected];
 
     $element[$delta] = array(
@@ -205,7 +207,7 @@ function cloudinary_field_formatter_view($entity_type, $entity, $field, $instanc
       '#item' => $item,
       '#image_style' => $image_style,
       '#path' => isset($uri) ? $uri : '',
-    	'#image_rendered_as_src' => $display['settings']['image_rendered_as_src'],
+   '#image_rendered_as_src' => $display['settings']['image_rendered_as_src'],
     );
   }
 
