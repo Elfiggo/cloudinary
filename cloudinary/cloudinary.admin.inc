@@ -38,9 +38,46 @@ function cloudinary_settings_form() {
   return system_settings_form($form);
 }
 
+function cloudinary_site_prefix_form($form, &$form_state) {
+  
+  $form['cloudinary_site_prefix_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Cloudinary Site Prefix'),
+    '#weight' => 5,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#description' => t("Each site using the same Cloudinary CDN must provide a prefix to use as a top level folder, so that sites don't overwrite each others' images."),
+  );
+  
+  $prefix = variable_get('cloudinary_site_prefix', uniqid());
+  
+  $form['cloudinary_site_prefix_fieldset']['cloudinary_site_prefix'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Cloudinary Site Prefix'),
+    '#default_value' => $prefix,
+    '#description' => t("Field that designates the top level Folder to upload the image to, defined per site."),
+  );
+  
+  $form['cloudinary_site_prefix_fieldset']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Update site prefix'),
+  );
+
+  $form['#submit'][] = 'cloudinary_site_prefix_form_submit';
+  
+  return $form;
+}
+
+function cloudinary_site_prefix_form_submit($form, &$form_state) {
+
+  variable_set('cloudinary_site_prefix', $form_state['values']['cloudinary_site_prefix']);
+  
+  drupal_set_message(t('The folder configuration has been saved.'));
+}
+
 function cloudinary_context_mapping_settings_form($form, &$form_state) {
 
-        // Output all current mappings and give option to clear
+    // Output all current mappings and give option to clear
     // Clearing is permanent
     $form['cloudinary_context_mapping_settings_form_fieldset'] = array(
       '#type' => 'fieldset',
@@ -217,7 +254,7 @@ function cloudinary_batch_processing_form_submit($form, &$form_state) {
 }
 
 function cloudinary_import_form($form, &$form_state) {
-  
+
   $form['cloudinary_public_id'] = array(
     '#type' => 'textfield',
     '#default_value' => '',

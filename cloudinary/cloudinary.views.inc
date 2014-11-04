@@ -33,6 +33,19 @@ function cloudinary_views_data_alter(&$data) {
         );
       }
   }
+  
+  $data[$prefix_plus_entity_type]['prefix'] = array(
+    'title' => 'Prefix to Public ID',
+    'filter' => array(
+      'handler' => 'views_handler_filter_string',
+    ),
+  );
+  $data[$prefix_plus_entity_type]['folder'] = array(
+    'title' => 'Folder',
+    'filter' => array(
+      'handler' => 'views_handler_filter_string',
+    ),
+  );
 }
 
 function _cloudinary_map_property_types_to_view_filters($property_type) {
@@ -117,6 +130,8 @@ function cloudinary_views_plugins() {
   return $plugins;
 }
 
+
+
 class CloudinaryViewsQueryPlugin extends views_plugin_query {
     
   public $entityType;
@@ -128,25 +143,36 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query {
     
     $this->entityType = $table['table']['entity type'];
   }
-
+  
   function execute(&$view) {
-
+      
     $start = microtime(true);
 
-    $entities = array();
+    $cloudinary_context_parameters = $this->_extract_cloudinary_context_parameters($view->exposed_input);
+    $cloudinary_parameters = $this->_gather_cloudinary_admin_api_parameters($view->exposed_input);
 
-    // Need to gather all parameters and consolidate them into a single array to pass to admin API
-    $cloudinary_unprocessed_parameters = $view->exposed_input;
-    $removed_elements = array('live_preview', '_triggering_element_name', '_triggering_element_value', 'js');
-    foreach($removed_elements as $element) unset($cloudinary_unprocessed_parameters[$element]);
+    $entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters);
     
-    // Set up Cloudinary parameters
+    // Just load all entities.
+    $view->result = $entities;
+    $view->total_rows = count($view->result);
+    $view->execute_time = microtime(true) - $start;
+    $view->use_ajax = true;
+  }
+  
+  function add_where() {}
+  function add_orderby() {}
+  
+  function _extract_cloudinary_context_parameters($input) {
+
+    $cloudinary_unprocessed_parameters = $input;
     $cloudinary_parameters = array();
 
     // First, extract the mapping parameters
     $cloudinary_field_mapping_parameters = array();
     $cloudinary_field_mappings = variable_get('cloudinary_field_mappings', array());
     foreach($cloudinary_field_mappings as $field => $mapping) {
+
         $mapping_key = 'cloudinary_context_' . $mapping;
         if (!empty($cloudinary_unprocessed_parameters[$mapping_key])) {
             $cloudinary_field_mapping_parameters[$mapping] = $cloudinary_unprocessed_parameters[$mapping_key];
@@ -156,23 +182,56 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query {
             unset($cloudinary_unprocessed_parameters[$mapping_key]);
         }
     }
+
+    // Add to the cloudinary parameters
     if (count($cloudinary_field_mapping_parameters) > 0) {
-        $cloudinary_parameters['context'] = true;
         foreach ($cloudinary_field_mapping_parameters as $cloudinary_field_mapping_parameter_key => $cloudinary_field_mapping_parameter_value) {
             $cloudinary_parameters[$cloudinary_field_mapping_parameter_key] = $cloudinary_field_mapping_parameter_value;
         }
     }
+    return $cloudinary_parameters;
+  }
+  
+  function _gather_cloudinary_admin_api_parameters($input) {
+
+    // Need to gather all parameters and consolidate them into a single array to pass to admin API
+    $cloudinary_unprocessed_parameters = $input;
+    $removed_elements = array('live_preview', '_triggering_element_name', '_triggering_element_value', 'js');
+    foreach($removed_elements as $element) unset($cloudinary_unprocessed_parameters[$element]);
     
+    $prefix = !empty($cloudinary_unprocessed_parameters['prefix']) ? $cloudinary_unprocessed_parameters['prefix'] : '';
+    unset($cloudinary_unprocessed_parameters['prefix']);
+    
+    $folder = !empty($cloudinary_unprocessed_parameters['folder']) ? $cloudinary_unprocessed_parameters['folder'] : '';
+    unset($cloudinary_unprocessed_parameters['folder']);
+    
+    $prefix_parameters = array();
+    if (strlen($prefix) > 0) $prefix_parameters[] = $prefix;
+    if (strlen($folder) > 0) $prefix_parameters[] = $folder;
+    $prefix_parameter_string = implode('/', $prefix_parameters);
+    
+    // Set up Cloudinary parameters
+    $cloudinary_parameters = array(
+      'context' => true,
+      'type' => 'upload',
+    );
+    if (strlen($prefix_parameter_string) > 0) $cloudinary_parameters['prefix'] = $prefix_parameter_string;
+
     // Finally, extract anything left over and insert as additional parameters
     // The names of the parameters have to be exactly the same as the admin api requires as there is no mapping
     foreach ($cloudinary_unprocessed_parameters as $unprocessed_parameter_key => $unprocessed_parameter_value) {
         $cloudinary_parameters[$unprocessed_parameter_key] = $unprocessed_parameter_value;
     }
 
+    return $cloudinary_parameters;
+  }
+  
+  function _query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters) {
+
     _cloudinary_initialize();
-    
-    $api = new \Cloudinary\Api();  
-    
+
+    $api = new \Cloudinary\Api();
+
     $results = $api->resources($cloudinary_parameters);
     $results_array = get_object_vars($results);
     $browsable_results = $results_array['resources'];
@@ -186,33 +245,43 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query {
 
       // Retrieve the resource details of this image
       // Strangely, the public id has to be urlencoded to work
-      $image_resource = $api->resource(urlencode($cloudinary_image_object->public_id), array('image_metadata' => true));
+      /*$image_resource = $api->resource(urlencode($cloudinary_image_object->public_id), array('image_metadata' => true));
       $image_resource_array = get_object_vars($image_resource);
 
       foreach ($image_resource_array as $key => $value) {
         $cloudinary_image_object->$key = $value;
-      }
-      
+      }*/
+
+      // Retrieve the context parameters and add to the entity
+      $cloudinary_field_mappings = variable_get('cloudinary_field_mappings', array());
       foreach($cloudinary_field_mappings as $field => $mapping) {
         $mapping_key = 'cloudinary_context_' . $mapping;
-        
+
         if (!empty($cloudinary_image_object->context['custom'][$mapping])) {
           $cloudinary_image_object->$mapping_key = $cloudinary_image_object->context['custom'][$mapping];
         }
       }
-      
-      $entities[] = $cloudinary_image_object;
-    }
 
-    // Just load all entities.
-    $view->result = $entities;
-    $view->total_rows = count($view->result);
-    $view->execute_time = microtime(true) - $start;
-    $view->use_ajax = true;
+      // Need to filter now based on contextual values
+      $failed_filtering = false;
+      $cloudinary_context_parameter_keys = array_keys($cloudinary_context_parameters);
+      
+      for ($counter = 0; $counter < count($cloudinary_context_parameter_keys) && ! $failed_filtering; $counter ++) {
+          $value = $cloudinary_image_object->context['custom'][$cloudinary_context_parameter_keys[$counter]];
+          $cloudinary_context_parameter_value = $cloudinary_context_parameters[$cloudinary_context_parameter_keys[$counter]];
+          
+          if (stripos($value, $cloudinary_context_parameter_value) !== FALSE) {}
+          else {
+            $failed_filtering = true;
+            break;
+          }
+      }
+      
+      if (!$failed_filtering) $entities[] = $cloudinary_image_object;
+    }
+    
+    return $entities;
   }
-  
-  function add_where() {}
-  function add_orderby() {}
   
   /**
    * Gets wrappers for the result entities.

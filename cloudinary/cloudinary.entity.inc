@@ -1,6 +1,6 @@
 <?php
 
 /**
- * Entity controller for picasa photos.
+ * Generic entity controller.
  */
 class CloudinaryAdminAPIEntityController extends EntityAPIController {}

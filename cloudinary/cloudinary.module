@@ -62,12 +62,13 @@ function cloudinary_menu() {
 }
 
 function cloudinary_settings_page() {
+    
     $items = array(
-      'cloudinary_general_settings_form' => drupal_get_form('cloudinary_settings_form'),
+      'cloudinary_settings_form' => drupal_get_form('cloudinary_settings_form'),
+      'cloudinary_site_prefix_form' => drupal_get_form('cloudinary_site_prefix_form'),      
       'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
       'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
       'cloudinary_batch_processing_form' => drupal_get_form('cloudinary_batch_processing_form'),
-      'cloudinary_import_form' => drupal_get_form('cloudinary_import_form'),
     );
 
     return $items;
@@ -118,6 +119,8 @@ function _cloudinary_save_file_image_to_cloudinary_and_update_entity($entity) {
     
     $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt", "field_file_image_title_text" => "caption"));
 
+    $prefix = variable_get('cloudinary_site_prefix', '');
+    
     $context = array();
     
     // Use mapping details to extract contextural information
@@ -135,7 +138,7 @@ function _cloudinary_save_file_image_to_cloudinary_and_update_entity($entity) {
     else $folder = '';
 
     // Need to resolve uri before passing it to cloudinary to process  	
-    $entity->uri = _cloudinary_file_upload($entity->uri, $context, $folder);
+    $entity->uri = _cloudinary_file_upload($entity->uri, $context, $prefix, $folder);
     $entity->destination = $entity->uri;
 }
 
@@ -196,7 +199,7 @@ function _cloudinary_extract_uri_elements($uri) {
  * @param $image
  * @param $id
  */
-function _cloudinary_file_upload($image_uri, $context = array(), $folder = '') {
+function _cloudinary_file_upload($image_uri, $context = array(), $prefix = '', $folder = '') {
 	
     $url_parameters = _cloudinary_extract_uri_elements($image_uri);
 	
@@ -206,22 +209,28 @@ function _cloudinary_file_upload($image_uri, $context = array(), $folder = '') {
 
     $file_real_path = drupal_realpath($image_uri);
 
+    $public_id_components = array();
+    
+    // This does not seem to work at the moment
+    if (strlen($prefix) > 0) $public_id_components[] = $prefix;
+    if (strlen($folder) > 0) $public_id_components[] = $folder;
+    
+    $generated_folder = implode('/', $public_id_components);
+    
     $options = array(
-      "public_id" => $cloudinary_id
+      "public_id" => $cloudinary_id,
+      "folder" => $generated_folder,
     );
 
     // Add additional parameters where required
     if (count($context) > 0) $options['context'] = $context;
-    if (strlen($folder) > 0) $options['folder'] = $folder;
 
-    \Cloudinary\Uploader::upload($file_real_path, $options);
+    $browsable_result = \Cloudinary\Uploader::upload($file_real_path, $options);
 
     $extension = $url_parameters['extension'];
 
     // Caveat - when uploading using a folder, the folder will automatically be appended to the beginning of the id on the cloudinary side
-    if (strlen($folder) > 0) $cloudinary_id = implode('/', array($folder, $cloudinary_id));
-
-    $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($cloudinary_id), urlencode($extension), urlencode($image_uri));
+    $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($browsable_result['public_id']), urlencode($extension), urlencode($image_uri));
 
     return $cloudinary_uri;
 }
@@ -229,7 +238,6 @@ function _cloudinary_file_upload($image_uri, $context = array(), $folder = '') {
 /**
  * Implements hook_image_effect_info()
  * Define a new image effect type that will appear in the image effects dropdown.
- *
  */
 function cloudinary_image_effect_info() {
   $effects = array();
@@ -799,4 +807,28 @@ function _cloudinary_import_media() {
   
   drupal_json_output($response);
   drupal_exit();
+}
+
+function cloudinary_requirements($phase) {
+    switch($phase) {
+      case 'runtime' :
+        $prefix = variable_get('cloudinary_site_prefix', '');
+        $requirements = array();
+          
+        if (strlen($prefix) == 0) {
+          $requirements['cloudinary'] = array(
+            'title' => t('Cloudinary Site Prefix undefined.'),
+            'value' => 'Undefined',
+            'severity' => REQUIREMENT_WARNING,
+          );
+        }
+        else {
+          $requirements['cloudinary'] = array(
+            'title' => t('Cloudinary Site Prefix.'),
+            'value' => $prefix,
+            'severity' => REQUIREMENT_ERROR,
+          );
+        }
+        return $requirements;
+    }
 }
