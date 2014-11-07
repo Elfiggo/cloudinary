@@ -819,14 +819,14 @@ function cloudinary_requirements($phase) {
           $requirements['cloudinary'] = array(
             'title' => t('Cloudinary Site Prefix undefined.'),
             'value' => 'Undefined',
-            'severity' => REQUIREMENT_WARNING,
+            'severity' => REQUIREMENT_ERROR,
           );
         }
         else {
           $requirements['cloudinary'] = array(
             'title' => t('Cloudinary Site Prefix.'),
             'value' => $prefix,
-            'severity' => REQUIREMENT_ERROR,
+            'severity' => REQUIREMENT_INFO,
           );
         }
         return $requirements;

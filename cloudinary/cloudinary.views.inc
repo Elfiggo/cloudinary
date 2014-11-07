@@ -89,6 +89,8 @@ function cloudinary_views_plugins() {
     
   $base = array('entity_cloudinary_admin_api');
   $plugins = array(
+
+    // Query plugin.
     'query' => array(
       'CloudinaryViewsQueryPlugin' => array(
         'title' => t('Cloudinary Admin API Query'),
@@ -96,6 +98,7 @@ function cloudinary_views_plugins() {
         'handler' => 'CloudinaryViewsQueryPlugin',
       ),
     ),
+
     // Display plugin.
     'display' => array(
       'MediaCloudinaryBrowserDisplayPlugin' => array(
@@ -109,6 +112,7 @@ function cloudinary_views_plugins() {
         'accept attachments' => TRUE,
       ),
     ),
+
     // Style plugin.
     'style' => array(
       'MediaCloudinaryBrowserStylePlugin' => array(
@@ -125,6 +129,17 @@ function cloudinary_views_plugins() {
         'help topic' => 'style-table',
       ),
     ),
+    // Pager plugin.
+    'pager' => array(
+        'MediaCloundaryBrowserPagerPlugin' => array(
+          'title' => t('Display Cloudinary items'),
+          'help' => t("Display Cloudinary items that this view might find"),
+          'handler' => 'MediaCloundaryBrowserPagerPlugin',
+          'help topic' => 'pager-none',
+          'uses options' => TRUE,
+          'type' => 'basic',
+        ),
+    ),
   );
 
   return $plugins;
@@ -132,10 +147,8 @@ function cloudinary_views_plugins() {
 
 
 
-class CloudinaryViewsQueryPlugin extends views_plugin_query {
-    
-  public $entityType;
-    
+class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
+
   function init($base_table, $base_field, $options) {
     parent::init($base_table, $base_field, $options);
 
@@ -144,24 +157,58 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query {
     $this->entityType = $table['table']['entity type'];
   }
   
+    /**
+   * Builds the necessary info to execute the query.
+   */
+  function build(&$view) {
+      parent::build($view);
+    // Store the view in the object to be able to use it later.
+    $this->view = $view;
+
+    $view->init_pager();
+
+    // Let the pager modify the query to add limits.
+    $this->pager->query();
+  }
+  
   function execute(&$view) {
-      
+
     $start = microtime(true);
+    
+    $query = $view->build_info['query'];
 
     $cloudinary_context_parameters = $this->_extract_cloudinary_context_parameters($view->exposed_input);
     $cloudinary_parameters = $this->_gather_cloudinary_admin_api_parameters($view->exposed_input);
+    
+    // Extract parameter for number of results
+    // Extract parameter for next_cursor
+    
+    if (empty($view->exposed_input['next_cursor'])) $this->pager->first_request = false;
 
-    $entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters);
+    //$cloudinary_parameters['max_results'] = 3;
+//    if (!empty($view->exposed_input['next_cursor'])) $pager->next_cursor = $view->exposed_input['next_cursor'];
+
+    $token = '';
+
+    // Pager specific code
+    $this->pager->pre_execute($query);
+    
+    if (!empty($query->max_results)) $cloudinary_parameters['max_results'] = $query->max_results;
+
+    $entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, $token);
+
+    $this->pager->next_cursor = $token;
     
     // Just load all entities.
     $view->result = $entities;
+    
+    // Pager specific code
+    $this->pager->post_execute($view->result);
+    
     $view->total_rows = count($view->result);
     $view->execute_time = microtime(true) - $start;
     $view->use_ajax = true;
   }
-  
-  function add_where() {}
-  function add_orderby() {}
   
   function _extract_cloudinary_context_parameters($input) {
 
@@ -226,14 +273,18 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query {
     return $cloudinary_parameters;
   }
   
-  function _query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters) {
+  function _query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, &$token) {
 
     _cloudinary_initialize();
 
     $api = new \Cloudinary\Api();
-
+    
     $results = $api->resources($cloudinary_parameters);
+
     $results_array = get_object_vars($results);
+    
+    $token = $results_array['next_cursor'];
+    
     $browsable_results = $results_array['resources'];
 
     foreach ($browsable_results as $cloudinary_image_array) {
@@ -313,4 +364,158 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query {
     // If no relationship is given, just return the entities.
      return array($this->entityType, $wrappers);
   }
+}
+
+/**
+ * Plugin for views without pagers.
+ *
+ * @ingroup views_pager_plugins
+ */
+class MediaCloundaryBrowserPagerPlugin extends views_plugin_pager {
+
+  var $first_request = true;
+  var $next_cursor = '';
+  
+  function summary_title() {
+    return format_plural($this->options['max_results'], '@count item', 'Paged, @count items', array('@count' => $this->options['max_results']));
+  }
+    
+  function option_definition() {
+    $options = parent::option_definition();
+    $options['max_results'] = array('default' => 10);
+    $options['next_cursor'] = array('default' => '');
+    $options['tags'] = array(
+      'contains' => array(
+        'first' => array('default' => '« first', 'translatable' => TRUE),
+        'next' => array('default' => 'next ›', 'translatable' => TRUE),
+      ),
+    );
+    return $options;
+  }
+  
+  /**
+   * Provide the default form for setting options.
+   */
+  function options_form(&$form, &$form_state) {
+
+    parent::options_form($form, $form_state);
+    $pager_text = $this->display->handler->get_pager_text();
+
+    $form['max_results'] = array(
+      '#title' => $pager_text['items per page title'],
+      '#type' => 'textfield',
+      '#description' => $pager_text['items per page description'],
+      '#default_value' => $this->options['max_results'],
+    );
+
+    $form['tags'] = array (
+      '#type' => 'fieldset',
+      '#collapsible' => FALSE,
+      '#collapsed' => FALSE,
+      '#tree' => TRUE,
+      '#title' => t('Tags'),
+      '#input' => TRUE,
+      '#description' => t('A lists of labels for the controls in the pager'),
+    );
+
+    $form['tags']['first'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Text for "first"-link'),
+      '#description' => t('Text for "first"-link'),
+      '#default_value' => $this->options['tags']['first'],
+    );
+
+    $form['tags']['next'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Text for "next"-link'),
+      '#description' => t('Text for "next"-link'),
+      '#default_value' => $this->options['tags']['next'],
+    );
+  }
+  
+  function query() {
+      $this->query->max_results = $this->options['items_per_page'];
+  }
+  
+  function render($input) {
+      
+    // The 0, 1, 3, 4 index are correct. See theme_pager documentation.
+    $tags = array(
+      0 => $this->options['tags']['first'],
+      1 => $this->options['tags']['next'],
+    );
+    $variables = array(
+      'tags' => $tags,
+      'first_request' => $this->first_request,
+      'next_cursor' => $this->next_cursor,
+      'element' => $this->get_pager_id(),
+      'parameters' => $input,
+    );
+    $output = theme_cloudinary_pager($variables);
+    return $output;
+  }
+
+  function pre_execute(&$query) {
+    $query->max_results = $this->options['max_results'];
+  }
+  function post_execute(&$result) {
+  }
+}
+
+/**
+ * Returns HTML for a query pager.
+ *
+ * Menu callbacks that display paged query results should call theme('pager') to
+ * retrieve a pager control so that users can view other results. Format a list
+ * of nearby pages with additional query results.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - tags: An array of labels for the controls in the pager.
+ *   - element: An optional integer to distinguish between multiple pagers on
+ *     one page.
+ *   - parameters: An associative array of query string parameters to append to
+ *     the pager links.
+ *   - quantity: The number of pages in the list.
+ *
+ * @ingroup themeable
+ */
+function theme_cloudinary_pager($variables) {
+    
+    $tags = $variables['tags'];
+
+    $first_request = $variables['first_request'];
+    $next_cursor = $variables['next_cursor'];
+
+    $element = $variables['element'];
+    $parameters = $variables['parameters'];
+
+    $items = array();
+
+    $attributes['href'] = url($_GET['q'], array('query' => $query));
+    $li_first = '<a' . drupal_attributes(array('href' => url($_GET['q']))) . '>' . check_plain($tags[0]) . '</a>';
+    $li_next = '<a' . drupal_attributes(array('href' => url($_GET['q'], array('query' => array('next_cursor' => $next_cursor))))) . '>' . check_plain($tags[1]) . '</a>';
+
+    if ($first_request) {
+        // Add item link that has no token
+        $items[] = array(
+          'class' => array('pager-first'),
+          'data' => $li_first,
+        );
+    }
+    if (strlen($next_cursor) > 0) {
+      // Add item link with token
+      $items[] = array(
+        'class' => array('pager-first'),
+        'data' => $li_next,
+      );
+    }
+    
+    if (count($items) > 0) {
+    
+        return '<h2 class="element-invisible">' . t('Pages') . '</h2>' . theme('item_list', array(
+          'items' => $items,
+          'attributes' => array('class' => array('pager')),
+        ));
+    }
 }
