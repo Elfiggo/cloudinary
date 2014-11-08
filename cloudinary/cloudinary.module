@@ -656,6 +656,10 @@ function cloudinary_entity_property_info() {
           'label' => t('Height'),
           'type' => 'integer',
         ),
+        'preview' => array(
+          'label' => t('Height'),
+          'type' => 'integer',
+        ),
     );
     
     $cloudinary_field_mappings = variable_get('cloudinary_field_mappings', array());

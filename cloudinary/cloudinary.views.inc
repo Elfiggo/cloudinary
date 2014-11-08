@@ -46,8 +46,6 @@ function cloudinary_views_data_alter(&$data) {
       'handler' => 'views_handler_filter_string',
     ),
   );
-
-  dpm($data);
 }
 
 function _cloudinary_map_property_types_to_view_filters($property_type) {
