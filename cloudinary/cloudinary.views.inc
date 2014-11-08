@@ -18,20 +18,20 @@ function cloudinary_views_data_alter(&$data) {
   $data[$prefix_plus_entity_type]['table']['entity type'] = $entity_type;
   
   foreach ($data[$prefix_plus_entity_type] as $view_property_key => $view_property_details) {
-      if ($view_property_key === 'table') continue;
-      
-      $data[$prefix_plus_entity_type][$view_property_key]['field']['click sortable'] = TRUE;
-      
-      $property_type = $data[$prefix_plus_entity_type][$view_property_key]['field']['type'];
-      $handlers['filter'] = _cloudinary_map_property_types_to_view_filters($property_type);
-      $handlers['argument'] = _cloudinary_map_property_types_to_view_arguments($property_type);
-      $handlers['sort'] = _cloudinary_map_property_types_to_view_sort($property_type);
-      
-      foreach ($handlers as $handler_key => $handler) {
-        if (!empty($handlers[$handler_key])) $data[$prefix_plus_entity_type][$view_property_key][$handler_key] = array(
-          'handler' => $handler
-        );
-      }
+    if ($view_property_key === 'table') continue;
+
+    $data[$prefix_plus_entity_type][$view_property_key]['field']['click sortable'] = TRUE;
+
+    $property_type = $data[$prefix_plus_entity_type][$view_property_key]['field']['type'];
+    $handlers['filter'] = _cloudinary_map_property_types_to_view_filters($property_type);
+    $handlers['argument'] = _cloudinary_map_property_types_to_view_arguments($property_type);
+    $handlers['sort'] = _cloudinary_map_property_types_to_view_sort($property_type);
+
+    foreach ($handlers as $handler_key => $handler) {
+      if (!empty($handlers[$handler_key])) $data[$prefix_plus_entity_type][$view_property_key][$handler_key] = array(
+        'handler' => $handler
+      );
+    }
   }
   
   $data[$prefix_plus_entity_type]['prefix'] = array(
@@ -46,6 +46,8 @@ function cloudinary_views_data_alter(&$data) {
       'handler' => 'views_handler_filter_string',
     ),
   );
+
+  dpm($data);
 }
 
 function _cloudinary_map_property_types_to_view_filters($property_type) {
@@ -283,7 +285,7 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
 
     $results_array = get_object_vars($results);
     
-    $token = $results_array['next_cursor'];
+    if (!empty($results_array['next_cursor'])) $token = $results_array['next_cursor'];
     
     $browsable_results = $results_array['resources'];
 
