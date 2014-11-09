@@ -24,3 +24,4 @@ files[] = cloudinary.api.batch.inc
 files[] = cloudinary.theme.inc
 files[] = cloudinary.views.inc
 files[] = cloudinary.entity.inc
+files[] = cloudinary.views.default

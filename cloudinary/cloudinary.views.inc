@@ -28,9 +28,11 @@ function cloudinary_views_data_alter(&$data) {
     $handlers['sort'] = _cloudinary_map_property_types_to_view_sort($property_type);
 
     foreach ($handlers as $handler_key => $handler) {
-      if (!empty($handlers[$handler_key])) $data[$prefix_plus_entity_type][$view_property_key][$handler_key] = array(
-        'handler' => $handler
-      );
+      if (!empty($handlers[$handler_key])) {
+        $data[$prefix_plus_entity_type][$view_property_key][$handler_key] = array(
+          'handler' => $handler
+        );
+      }
     }
   }
   
@@ -46,6 +48,9 @@ function cloudinary_views_data_alter(&$data) {
       'handler' => 'views_handler_filter_string',
     ),
   );
+  $data[$prefix_plus_entity_type]['preview']['field']['handler'] = 'CloudinaryEntityViewsHandlerFieldPreview';
+ 
+  dpm($data[$prefix_plus_entity_type]);
 }
 
 function _cloudinary_map_property_types_to_view_filters($property_type) {
@@ -293,6 +298,8 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
       foreach ($cloudinary_image_array as $key => $value) {
         $cloudinary_image_object->$key = $value;
       }
+      
+      $cloudinary_image_object->preview = $cloudinary_image_object->public_id;
 
       // Retrieve the resource details of this image
       // Strangely, the public id has to be urlencoded to work
@@ -518,4 +525,23 @@ function theme_cloudinary_pager($variables) {
           'attributes' => array('class' => array('pager')),
         ));
     }
+}
+
+class CloudinaryEntityViewsHandlerFieldPreview extends entity_views_handler_field_text {
+  /**
+   * Render the field.
+   *
+   * @param $values
+   *   The values retrieved from the database.
+   */
+  public function render($values) {
+    $response = parent::render($values);
+    $image = theme_image_style_cloudinary(
+       array(
+         'style_name' => 'media_thumbnail',
+         'cloudinary_id' => $response,
+       )
+    );
+    return $image;
+  }
 }
