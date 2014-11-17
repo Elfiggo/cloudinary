@@ -202,10 +202,6 @@ function _cloudinary_extract_uri_elements($uri) {
  */
 function _cloudinary_file_upload($image_uri, $context = array(), $prefix = '', $folder = '') {
 	
-    $url_parameters = _cloudinary_extract_uri_elements($image_uri);
-	
-    $cloudinary_id = implode('/', $url_parameters['path_pieces']);
-
     _cloudinary_initialize();
 
     $file_real_path = drupal_realpath($image_uri);
@@ -219,8 +215,8 @@ function _cloudinary_file_upload($image_uri, $context = array(), $prefix = '', $
     $generated_folder = implode('/', $public_id_components);
     
     $options = array(
-      "public_id" => $cloudinary_id,
       "folder" => $generated_folder,
+      "use_filename" => true,
     );
 
     // Add additional parameters where required

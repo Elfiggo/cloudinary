@@ -439,7 +439,7 @@ class MediaCloundaryBrowserPagerPlugin extends views_plugin_pager {
   }
   
   function query() {
-      $this->query->max_results = $this->options['items_per_page'];
+      if (!empty($this->options['items_per_page'])) $this->query->max_results = $this->options['items_per_page'];
   }
   
   function render($input) {
@@ -497,7 +497,6 @@ function theme_cloudinary_pager($variables) {
 
     $items = array();
 
-    $attributes['href'] = url($_GET['q'], array('query' => $query));
     $li_first = '<a' . drupal_attributes(array('href' => url($_GET['q']))) . '>' . check_plain($tags[0]) . '</a>';
     $li_next = '<a' . drupal_attributes(array('href' => url($_GET['q'], array('query' => array('next_cursor' => $next_cursor))))) . '>' . check_plain($tags[1]) . '</a>';
 
