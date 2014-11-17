@@ -41,7 +41,8 @@
                 var generateFile = data.data;
                 var files = new Array();
                 files.push(generateFile);
-                Drupal.media.browser.selectMediaAndSubmit(files);
+                Drupal.media.browser.selectedMedia = files;
+                Drupal.media.browser.submit();
             }
           };
           
