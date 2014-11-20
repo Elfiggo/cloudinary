@@ -224,8 +224,8 @@ function _cloudinary_file_upload($image_uri, $context = array(), $prefix = '', $
 
     $browsable_result = \Cloudinary\Uploader::upload($file_real_path, $options);
 
-    $extension = $url_parameters['extension'];
-
+    $extension = $browsable_result['format'];
+    
     // Caveat - when uploading using a folder, the folder will automatically be appended to the beginning of the id on the cloudinary side
     $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($browsable_result['public_id']), urlencode($extension), urlencode($image_uri));
 
