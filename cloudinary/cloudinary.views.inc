@@ -188,18 +188,34 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
     
     if (empty($view->exposed_input['next_cursor'])) $this->pager->first_request = false;
 
-    //$cloudinary_parameters['max_results'] = 3;
-//    if (!empty($view->exposed_input['next_cursor'])) $pager->next_cursor = $view->exposed_input['next_cursor'];
-
+    // Initialise token
     $token = '';
 
     // Pager specific code
     $this->pager->pre_execute($query);
     
+    // Default number of results from cloudinary is 10 as per the admin api    
     if (!empty($query->max_results)) $cloudinary_parameters['max_results'] = $query->max_results;
+    else $cloudinary_parameters['max_results'] = 10;
 
-    $entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, $token);
+    // Declare the entities the first time
+    $entities = array();
+    
+    // Make the initial request
+    $retrieved_entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, $token);
+    $entities = array_merge($entities, $retrieved_entities);
 
+    
+    // Need to determine if the number of results after processing is enough, if not and there is a token, feed back in
+    while (count($entities) < $cloudinary_parameters['max_results'] && strlen($token) != 0) {
+
+        $cloudinary_parameters['next_cursor'] = $token;
+        $token = '';
+        
+        $retrieved_entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, $token);
+        $entities = array_merge($entities, $retrieved_entities);
+    }
+    
     $this->pager->next_cursor = $token;
     
     // Just load all entities.
@@ -278,6 +294,8 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
   
   function _query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, &$token) {
 
+    $entities = array();
+      
     _cloudinary_initialize();
 
     $api = new \Cloudinary\Api();
@@ -287,6 +305,7 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
     $results_array = get_object_vars($results);
     
     if (!empty($results_array['next_cursor'])) $token = $results_array['next_cursor'];
+    else $token = '';
     
     $browsable_results = $results_array['resources'];
 
@@ -493,12 +512,15 @@ function theme_cloudinary_pager($variables) {
     $next_cursor = $variables['next_cursor'];
 
     $element = $variables['element'];
+    
     $parameters = $variables['parameters'];
-
+    
     $items = array();
 
-    $li_first = '<a' . drupal_attributes(array('href' => url($_GET['q']))) . '>' . check_plain($tags[0]) . '</a>';
-    $li_next = '<a' . drupal_attributes(array('href' => url($_GET['q'], array('query' => array('next_cursor' => $next_cursor))))) . '>' . check_plain($tags[1]) . '</a>';
+    $li_first = '<a' . drupal_attributes(array('href' => url($_GET['q'], array('query' => $parameters)))) . '>' . check_plain($tags[0]) . '</a>';
+    
+    $parameters['next_cursor'] = $next_cursor;
+    $li_next = '<a' . drupal_attributes(array('href' => url($_GET['q'], array('query' => $parameters)))) . '>' . check_plain($tags[1]) . '</a>';
 
     if ($first_request) {
         // Add item link that has no token
