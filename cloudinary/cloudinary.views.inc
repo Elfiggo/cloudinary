@@ -197,6 +197,9 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
     // Default number of results from cloudinary is 10 as per the admin api    
     if (!empty($query->max_results)) $cloudinary_parameters['max_results'] = $query->max_results;
     else $cloudinary_parameters['max_results'] = 10;
+    
+    if (!empty($query->max_api_calls)) $max_api_calls = $query->max_api_calls;
+    else $max_api_calls = 10;
 
     // Declare the entities the first time
     $entities = array();
@@ -205,15 +208,18 @@ class CloudinaryViewsQueryPlugin extends views_plugin_query_default {
     $retrieved_entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, $token);
     $entities = array_merge($entities, $retrieved_entities);
 
+    $api_calls_made_so_far = 1;
     
     // Need to determine if the number of results after processing is enough, if not and there is a token, feed back in
-    while (count($entities) < $cloudinary_parameters['max_results'] && strlen($token) != 0) {
+    while ($api_calls_made_so_far < $max_api_calls && count($entities) < $cloudinary_parameters['max_results'] && strlen($token) != 0) {
 
         $cloudinary_parameters['next_cursor'] = $token;
         $token = '';
         
         $retrieved_entities = $this->_query_cloudinary_admin_api($cloudinary_parameters, $cloudinary_context_parameters, $token);
         $entities = array_merge($entities, $retrieved_entities);
+        
+        $api_calls_made_so_far ++;
     }
     
     $this->pager->next_cursor = $token;
@@ -401,13 +407,15 @@ class MediaCloundaryBrowserPagerPlugin extends views_plugin_pager {
   var $next_cursor = '';
   
   function summary_title() {
-    return format_plural($this->options['max_results'], '@count item', 'Paged, @count items', array('@count' => $this->options['max_results']));
+    return t('Paged, @count items, max @api api calls per display', array('@count' => $this->options['max_results'], '@api' => $this->options['max_api_calls']) );
   }
     
   function option_definition() {
     $options = parent::option_definition();
     $options['max_results'] = array('default' => 10);
+    $options['max_api_calls'] = array('default' => 10);
     $options['next_cursor'] = array('default' => '');
+
     $options['tags'] = array(
       'contains' => array(
         'first' => array('default' => '« first', 'translatable' => TRUE),
@@ -426,10 +434,17 @@ class MediaCloundaryBrowserPagerPlugin extends views_plugin_pager {
     $pager_text = $this->display->handler->get_pager_text();
 
     $form['max_results'] = array(
-      '#title' => $pager_text['items per page title'],
+      '#title' => t('items per page title'),
       '#type' => 'textfield',
-      '#description' => $pager_text['items per page description'],
+      '#description' => t('items per page description'),
       '#default_value' => $this->options['max_results'],
+    );
+    
+    $form['max_api_calls'] = array(
+      '#title' => t('Max api calls per request'),
+      '#type' => 'textfield',
+      '#description' => t('API Calls per page'),
+      '#default_value' => $this->options['max_api_calls'],
     );
 
     $form['tags'] = array (
@@ -459,6 +474,7 @@ class MediaCloundaryBrowserPagerPlugin extends views_plugin_pager {
   
   function query() {
       if (!empty($this->options['items_per_page'])) $this->query->max_results = $this->options['items_per_page'];
+      if (!empty($this->options['max_api_calls'])) $this->query->max_api_calls = $this->options['max_api_calls'];
   }
   
   function render($input) {
@@ -481,6 +497,7 @@ class MediaCloundaryBrowserPagerPlugin extends views_plugin_pager {
 
   function pre_execute(&$query) {
     $query->max_results = $this->options['max_results'];
+    $query->max_api_calls = $this->options['max_api_calls'];
   }
   function post_execute(&$result) {
   }
