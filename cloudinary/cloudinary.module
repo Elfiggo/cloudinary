@@ -384,6 +384,14 @@ function cloudinary_crop_form($data) {
     '#default_value' => isset($data['effect']) ? $data['effect'] : '',
   );
 
+  $form['quality'] = array(
+    '#type' => 'select',
+    '#title' => t('Quality'),
+    '#options' => drupal_map_assoc(array(10,20,30,40,50,60,70,80,90,100)),
+    '#default_value' => isset($data['quality']) ? $data['quality'] : '80',
+
+  );
+
   return $form;
 }
 
@@ -398,11 +406,12 @@ function cloudinary_empty_effect(&$image, $data) {
  * @return null|string
  */
 function theme_cloudinary_crop_summary($variables) {
-  return t('Image will have cloudinary effects applied, using crop : @crop, to the size of @widthx@height, using effect @effect', array(
+  return t('Image will have cloudinary effects applied, using crop : @crop, to the size of @widthx@height, using effect @effect with quality @quality', array(
     '@crop' => $variables['data']['crop'],
     '@width' => $variables['data']['width'],
     '@height' => $variables['data']['height'],
-    '@effect' => $variables['data']['effect']
+    '@effect' => $variables['data']['effect'],
+    '@quality' => $variables['data']['quality'],
   ));
 }
 
