@@ -18,6 +18,10 @@ function cloudinary_libraries_info() {
     'files' => array(
       'php' => array('src/Cloudinary.php', 'src/Uploader.php', 'src/Api.php'),
     ),
+    'version arguments' => array(
+      'file' => 'composer.json',
+      'pattern' => '@(?<=version": ")([0-9\.a-z]+)@',
+    ),
   );
 
   return $libraries;
@@ -119,7 +123,6 @@ function cloudinary_permission() {
  * The file is still saved in Drupal as usual.
  */
 function cloudinary_entity_presave($entity, $type) {
-
   if ($type == 'file' && $entity->type == 'image' && $entity->status == FILE_STATUS_PERMANENT) {
     _cloudinary_save_file_image_to_cloudinary_and_update_entity($entity);
   }
@@ -825,28 +828,4 @@ function _cloudinary_import_media() {
 
   drupal_json_output($response);
   drupal_exit();
-}
-
-function cloudinary_requirements($phase) {
-    switch($phase) {
-      case 'runtime' :
-        $prefix = variable_get('cloudinary_site_prefix', '');
-        $requirements = array();
-
-        if (strlen($prefix) == 0) {
-          $requirements['cloudinary'] = array(
-            'title' => t('Cloudinary Site Prefix undefined.'),
-            'value' => 'Undefined',
-            'severity' => REQUIREMENT_ERROR,
-          );
-        }
-        else {
-          $requirements['cloudinary'] = array(
-            'title' => t('Cloudinary Site Prefix.'),
-            'value' => $prefix,
-            'severity' => REQUIREMENT_INFO,
-          );
-        }
-        return $requirements;
-    }
 }

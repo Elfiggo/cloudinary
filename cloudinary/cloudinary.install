@@ -1,0 +1,58 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the cloudinary module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function cloudinary_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+
+  switch($phase) {
+    case 'runtime' :
+      $error_message = isset($library['error message']) ? $library['error message'] : '';
+
+      // Cloudinary library.
+      if (($library = libraries_detect('cloudinary')) && !empty($library['installed'])) {
+        $requirements['cloudinary'] = array(
+          'title' => t('Cloudinary Library'),
+          'value' => $library['version'],
+          'severity' => REQUIREMENT_OK,
+        );
+      }
+      else {
+        $requirements['cloudinary'] = array(
+          'title' => $t('Cloudinary Library'),
+          'value' => $t('Cloudinary library missing.'),
+          'severity' => REQUIREMENT_ERROR,
+          'description' => $t('!error You need to download the !colorbox, extract the archive and place the cloudinary directory in the %path directory on your server.', array('!error' => $error_message, '!colorbox' => l($t('Cloudinary Library'), $library['download url']), '%path' => 'sites/all/libraries')),
+        );
+      }
+
+      // Cloudinary site prefix.
+      $prefix = variable_get('cloudinary_site_prefix', '');
+
+      if (strlen($prefix) == 0) {
+        $requirements['cloudinary_prefix'] = array(
+          'title' => t('Cloudinary Site Prefix undefined'),
+          'value' => 'Undefined',
+          'severity' => REQUIREMENT_ERROR,
+          'description' => $t('!error You need to set the !link.', array('!error' => $error_message, '!link' => l($t('site prefix'), 'admin/config/media/cloudinary'))),
+        );
+      }
+      else {
+        $requirements['cloudinary_prefix'] = array(
+          'title' => t('Cloudinary Site Prefix.'),
+          'value' => $prefix,
+          'severity' => REQUIREMENT_OK,
+        );
+      }
+      break;
+  }
+
+  return $requirements;
+}
