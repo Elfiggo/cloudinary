@@ -15,25 +15,6 @@ function cloudinary_requirements($phase) {
   $error_message = isset($library['error message']) ? $library['error message'] : '';
 
   switch($phase) {
-    case 'install':
-      // Cloudinary library.
-      if (($library = libraries_detect('cloudinary')) && !empty($library['installed'])) {
-        $requirements['cloudinary'] = array(
-          'title' => t('Cloudinary Library'),
-          'value' => $library['version'],
-          'severity' => REQUIREMENT_OK,
-        );
-      }
-      else {
-        $requirements['cloudinary'] = array(
-          'title' => $t('Cloudinary Library'),
-          'value' => $t('Cloudinary library missing.'),
-          'severity' => REQUIREMENT_ERROR,
-          'description' => $t('!error You need to download the !cloudinary, extract the archive and place it in the cloudinary directory in the %path directory on your server.', array('!error' => $error_message, '!cloudinary' => l($t('Cloudinary Library'), $library['download url']), '%path' => 'sites/all/libraries')),
-        );
-      }
-
-      break;
     case 'runtime' :
       // Cloudinary library.
       if (($library = libraries_detect('cloudinary')) && !empty($library['installed'])) {
@@ -48,7 +29,7 @@ function cloudinary_requirements($phase) {
           'title' => $t('Cloudinary Library'),
           'value' => $t('Cloudinary library missing.'),
           'severity' => REQUIREMENT_ERROR,
-          'description' => $t('!error You need to download the !colorbox, extract the archive and place the cloudinary directory in the %path directory on your server.', array('!error' => $error_message, '!colorbox' => l($t('Cloudinary Library'), $library['download url']), '%path' => 'sites/all/libraries')),
+          'description' => $t('!error You need to download the !cloudinary, extract the archive and place it in the cloudinary directory in the %path directory on your server.', array('!error' => $error_message, '!cloudinary' => l($t('Cloudinary Library'), $library['download url']), '%path' => 'sites/all/libraries')),
         );
       }
 
