@@ -1,6 +1,10 @@
 <?php
 
-require_once('lib/src/Cloudinary.php');
+/**
+ * @file
+ * Cloudinary image field formatter.
+ */
+
 require_once('cloudinary.theme.inc');
 
 /**
@@ -11,15 +15,21 @@ function cloudinary_field_formatter_info() {
     'cloudinary_image' => array(
       'label' => t('Cloudinary Image'),
       'field types' => array('image'),
-      'settings' => array('horizontal_image_style' => '', 'vertical_image_style' => '', 'image_link' => '', 'image_rendered_as_src' => false),
+      'settings' => array(
+        'horizontal_image_style' => '',
+        'vertical_image_style' => '',
+        'image_link' => '',
+        'image_rendered_as_src' => FALSE
+      ),
     ),
   );
 
   return $formatters;
 }
+
 /**
- * 
- * Implements hook_file_formatter_info
+ *
+ * Implements hook_file_formatter_info().
  */
 
 function hook_file_formatter_info() {
@@ -41,7 +51,7 @@ function hook_file_formatter_info() {
  * Implements hook_file_formatter_FORMATTER_view().
  */
 function cloudinary_file_formatter_image_view($file, $display, $langcode) {
-	
+
   $scheme = file_uri_scheme($file->uri);
   if ($scheme == 'cloudinary') {
     $wrapper = file_stream_wrapper_get_instance_by_uri($file->uri);
@@ -100,7 +110,7 @@ function cloudinary_field_formatter_settings_form($field, $instance, $view_mode,
     '#empty_option' => t('None (original image)'),
     '#options' => $image_styles,
   );
-  
+
   $element['vertical_image_style'] = array(
     '#title' => t('Vertical Image style'),
     '#type' => 'select',
@@ -108,13 +118,13 @@ function cloudinary_field_formatter_settings_form($field, $instance, $view_mode,
     '#empty_option' => t('None (original image)'),
     '#options' => $image_styles,
   );
-  
+
   $element['image_rendered_as_src'] = array(
     '#title' => t('Image rendered as src'),
     '#type' => 'checkbox',
     '#default_value' => $settings['image_rendered_as_src'],
   );
-  
+
   $link_types = array(
     'content' => t('Content'),
     'file' => t('File'),
@@ -147,19 +157,21 @@ function cloudinary_field_formatter_settings_summary($field, $instance, $view_mo
 
   // Styles could be lost because of enabled/disabled modules that defines
   // their styles in code.
-  
+
   if (isset($image_styles[$settings['horizontal_image_style']]) || isset($image_styles[$settings['vertical_image_style']])) {
     $summary[] = t('Image Styles (Horizontal/Vertical): @horizontal_image_style, @vertical_image_style and hosted on Cloudinary',
-        array(
-            '@horizontal_image_style' => isset($image_styles[$settings['horizontal_image_style']]) ? $image_styles[$settings['horizontal_image_style']] : 'original (unstyled)',
-            '@vertical_image_style' => isset($image_styles[$settings['vertical_image_style']]) ? $image_styles[$settings['vertical_image_style']] : 'original (unstyled)',
-        ));
+      array(
+        '@horizontal_image_style' => isset($image_styles[$settings['horizontal_image_style']]) ? $image_styles[$settings['horizontal_image_style']] : 'original (unstyled)',
+        '@vertical_image_style' => isset($image_styles[$settings['vertical_image_style']]) ? $image_styles[$settings['vertical_image_style']] : 'original (unstyled)',
+      ));
   }
   else {
-    $summary[] = t('Original Image hosted on Cloudinary ');
+    $summary[] = t('Original Image hosted on Cloudinary.');
   }
-  
-  if ($settings['image_rendered_as_src']) $summary[] = t('Image rendered as src url.');
+
+  if ($settings['image_rendered_as_src']) {
+    $summary[] = t('Image rendered as src url.');
+  }
 
   $link_types = array(
     'content' => t('Linked to content'),
@@ -196,9 +208,13 @@ function cloudinary_field_formatter_view($entity_type, $entity, $field, $instanc
         'options' => array(),
       );
     }
-    
-    if (!empty($item['metadata']['width']) && !empty($item['metadata']['height'])) $style_selected = $item['metadata']['width'] >= $item['metadata']['height'] ? 'horizontal_image_style' : 'vertical_image_style';
-    else $style_selected = 'horizontal_image_style';
+
+    if (!empty($item['metadata']['width']) && !empty($item['metadata']['height'])) {
+      $style_selected = $item['metadata']['width'] >= $item['metadata']['height'] ? 'horizontal_image_style' : 'vertical_image_style';
+    }
+    else {
+      $style_selected = 'horizontal_image_style';
+    }
 
     $image_style = $display['settings'][$style_selected];
 
@@ -207,7 +223,7 @@ function cloudinary_field_formatter_view($entity_type, $entity, $field, $instanc
       '#item' => $item,
       '#image_style' => $image_style,
       '#path' => isset($uri) ? $uri : '',
-   '#image_rendered_as_src' => $display['settings']['image_rendered_as_src'],
+      '#image_rendered_as_src' => $display['settings']['image_rendered_as_src'],
     );
   }
 

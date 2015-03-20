@@ -44,18 +44,18 @@ class MediaCloudinaryBrowserView extends MediaBrowserPlugin {
    * Implements MediaBrowserPlugin::view().
    */
   public function view() {
-    
+
     if (!empty($this->view)) {
-        
+
       //module_load_include('inc', 'file_entity', 'file_entity.pages');
-      
-      $build['MediaBrowserTab']['#tree'] = true;
+
+      $build['MediaBrowserTab']['#tree'] = TRUE;
       $build['MediaBrowserTab']['#prefix'] = '<div class="mediacloudinarybrowserviewcontainer">';
       $build['MediaBrowserTab']['#suffix'] = '</div>';
       $build['MediaBrowserTab']['mediacloudinarybrowserview']['#markup'] = $this->view->preview();
 
       //Put microform in here
-      
+
       $build['MediaBrowserTab']['form'] = drupal_get_form('cloudinary_import_form');
 
       // Allow the View title to override the plugin title.

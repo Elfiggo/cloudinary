@@ -14,7 +14,7 @@
       $('.mediacloudinarybrowserviewcontainer a').click(function() {
         return false;
       });
-      
+
       var selectMediaCloudinaryBrowserViewContainer = '.mediacloudinarybrowserviewcontainer',
           selectAllTableRowsQuery = selectMediaCloudinaryBrowserViewContainer + ' .views-table tr',
           selectedSelectedPublicIDQuery = selectAllTableRowsQuery + '.selected .views-field-public-id',
@@ -25,14 +25,14 @@
           var allRows = $(selectAllTableRowsQuery);
           allRows.removeClass('selected');
           $(this).addClass('selected');
-          
+
           var selectedRowPublicID = $(selectedSelectedPublicIDQuery);
           var public_id = selectedRowPublicID.text().trim();
           $(selectPublicIDHiddenFormElementQuery).val(public_id);
       });
-      
+
       $(selectSubmitButtonQuery).click(function(e) {
-          
+
           var processImportFileResult = function(data) {
             if (data.error != 0) {
                 alert(data.error_message);
@@ -45,7 +45,7 @@
                 Drupal.media.browser.submit();
             }
           };
-          
+
           var selectedRowPublicID = $(selectPublicIDHiddenFormElementQuery).val();
           var object = {cloudinary_public_id:selectedRowPublicID};
           var data_json = JSON.stringify(object);
@@ -57,16 +57,16 @@
               processImportFileResult(data);
             }),
             fail : (function( jqXHR, textStatus ) {
-              alert( "Request failed: " + textStatus );
+              alert(Drupal.t("Request failed: " + textStatus));
             })
           });
-          
+
           e.stopPropagation();
           e.stopImmediatePropagation();
           return false;
       });
     }
   };
-  
+
 
 }(jQuery));

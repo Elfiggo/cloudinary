@@ -14,8 +14,4 @@
  * @ingroup views_style_plugins
  */
 class MediaCloudinaryBrowserStylePlugin extends views_plugin_style_table {
-    
-    
-    
-    
 }
