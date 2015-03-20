@@ -38,25 +38,26 @@ function cloudinary_help($path, $arg) {
       $output .= '<p>' . t('The Cloudinary module allows you to automatically publish images to Cloudinary through image fields. The returned results can have image styles applied.') . '</p>';
       $output .= '<h4>' . t('Prerequisites') . '</h4>';
       $output .= '<ol>';
-      $output .= '<li>'.t('At least version 7.x-2.0-alpha3 of the media module required, found <a href="https://www.drupal.org/node/2120855">here</a>.').'</li>';
-      $output .= '<li>'.t('File entity module version 2 required.').'</li>';
+      $output .= '<li>' . t('At least version 7.x-2.0-alpha3 of the media module required, found <a href="https://www.drupal.org/node/2120855">here</a>.') . '</li>';
+      $output .= '<li>' . t('File entity module version 2 required.') . '</li>';
       $output .= '</ol>';
       $output .= '<h4>' . t('Installation') . '</h4>';
       $output .= '<ol>';
-      $output .= '<li>'.t('Enable all required contributed modules.').'</li>';
-      $output .= '<li>'.t('Enable the Cloudinary module.').'</li>';
-      $output .= '<li>'.t('On the <a href="/admin/config/media/cloudinary">configuration page</a>, enter all information. This can be found on your Cloudinary dashboard.').'</li>';
-      $output .= '<li>'.t('Next, create a <a href="/admin/config/media/image-styles/add">new image style</a> and give it the effect "Cloudinary"').'</li>';
-      $output .= '<li>'.t('Create a new "Image" field or edit an existing field and set its display to type "Cloudinary Image". In the advanced settings, set the image style to the new style created in step 4.').'</li>';
+      $output .= '<li>' . t('Enable all required contributed modules.') . '</li>';
+      $output .= '<li>' . t('Enable the Cloudinary module.') . '</li>';
+      $output .= '<li>' . t('On the <a href="/admin/config/media/cloudinary">configuration page</a>, enter all information. This can be found on your Cloudinary dashboard.') . '</li>';
+      $output .= '<li>' . t('Next, create a <a href="/admin/config/media/image-styles/add">new image style</a> and give it the effect "Cloudinary"') . '</li>';
+      $output .= '<li>' . t('Create a new "Image" field or edit an existing field and set its display to type "Cloudinary Image". In the advanced settings, set the image style to the new style created in step 4.') . '</li>';
       $output .= '</ol>';
       $output .= '<h4>' . t('Additional') . '</h4>';
       $output .= '<ol>';
-      $output .= '<li>'.t('If you are uploading JPEGs, make sure to enable the JPEGmini add on in your Cloudinary account. This can be found in "Add-Ons."').'</li>';
-      $output .= '<li>'.t('Drupal will create a "Transformation" for each image style that uses Cloudinary.').'</li>';
+      $output .= '<li>' . t('If you are uploading JPEGs, make sure to enable the JPEGmini add on in your Cloudinary account. This can be found in "Add-Ons."') . '</li>';
+      $output .= '<li>' . t('Drupal will create a "Transformation" for each image style that uses Cloudinary.') . '</li>';
       $output .= '</ol>';
       return $output;
   }
 }
+
 /**
  * Implements hook_menu().
  *
@@ -83,15 +84,15 @@ function cloudinary_menu() {
 
 function cloudinary_settings_page() {
 
-    $items = array(
-      'cloudinary_settings_form' => drupal_get_form('cloudinary_settings_form'),
-      'cloudinary_site_prefix_form' => drupal_get_form('cloudinary_site_prefix_form'),
-      'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
-      'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
-      'cloudinary_batch_processing_form' => drupal_get_form('cloudinary_batch_processing_form'),
-    );
+  $items = array(
+    'cloudinary_settings_form' => drupal_get_form('cloudinary_settings_form'),
+    'cloudinary_site_prefix_form' => drupal_get_form('cloudinary_site_prefix_form'),
+    'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
+    'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
+    'cloudinary_batch_processing_form' => drupal_get_form('cloudinary_batch_processing_form'),
+  );
 
-    return $items;
+  return $items;
 }
 
 /**
@@ -130,35 +131,54 @@ function cloudinary_entity_presave($entity, $type) {
 
 function _cloudinary_save_file_image_to_cloudinary_and_update_entity($entity) {
 
-    $scheme = file_uri_scheme($entity->uri);
-    if ($scheme == 'cloudinary') return;
+  $scheme = file_uri_scheme($entity->uri);
+  if ($scheme == 'cloudinary') {
+    return;
+  }
 
-    $entity_metadata_wrapper = entity_metadata_wrapper('file', $entity);
-    $entity_property_info = $entity_metadata_wrapper->getPropertyInfo();
+  $entity_metadata_wrapper = entity_metadata_wrapper('file', $entity);
+  $entity_property_info = $entity_metadata_wrapper->getPropertyInfo();
 
-    $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt", "field_file_image_title_text" => "caption"));
+  $context_mapping = variable_get('cloudinary_field_mappings', array(
+    "field_file_image_alt_text" => "alt",
+    "field_file_image_title_text" => "caption"
+  ));
 
-    $prefix = variable_get('cloudinary_site_prefix', '');
+  $prefix = variable_get('cloudinary_site_prefix', '');
 
-    $context = array();
+  $context = array();
 
-    // Use mapping details to extract contextural information
-    foreach ($context_mapping as $field_id => $cloudinary_context_id) {
-        if (!empty($entity_property_info[$field_id]['type']) && $entity_property_info[$field_id]['type'] == 'text') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
-        else if (!empty($entity_property_info[$field_id]['type']) && $entity_property_info[$field_id]['type'] == 'taxonomy_term') $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value()->name;
+  // Use mapping details to extract contextural information
+  foreach ($context_mapping as $field_id => $cloudinary_context_id) {
+    if (!empty($entity_property_info[$field_id]['type']) && $entity_property_info[$field_id]['type'] == 'text') {
+      $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value();
     }
-
-    // Use folder field machine name to extract folder information, types support : text and taxonomy_term
-    $folder_field_id =  variable_get('cloudinary_folder', '');
-    if (strlen($folder_field_id) > 0) {
-        if (!empty($entity_property_info[$folder_field_id]['type']) && $entity_property_info[$folder_field_id]['type'] == 'text') $folder = $entity_metadata_wrapper->{$folder_field_id}->value();
-        else if (!empty($entity_property_info[$folder_field_id]['type']) && $entity_property_info[$folder_field_id]['type'] == 'taxonomy_term') $folder = $entity_metadata_wrapper->{$folder_field_id}->value()->name;
+    else {
+      if (!empty($entity_property_info[$field_id]['type']) && $entity_property_info[$field_id]['type'] == 'taxonomy_term') {
+        $context[$cloudinary_context_id] = $entity_metadata_wrapper->{$field_id}->value()->name;
+      }
     }
-    else $folder = '';
+  }
 
-    // Need to resolve uri before passing it to cloudinary to process
-    $entity->uri = _cloudinary_file_upload($entity->uri, $context, $prefix, $folder);
-    $entity->destination = $entity->uri;
+  // Use folder field machine name to extract folder information, types support : text and taxonomy_term
+  $folder_field_id = variable_get('cloudinary_folder', '');
+  if (strlen($folder_field_id) > 0) {
+    if (!empty($entity_property_info[$folder_field_id]['type']) && $entity_property_info[$folder_field_id]['type'] == 'text') {
+      $folder = $entity_metadata_wrapper->{$folder_field_id}->value();
+    }
+    else {
+      if (!empty($entity_property_info[$folder_field_id]['type']) && $entity_property_info[$folder_field_id]['type'] == 'taxonomy_term') {
+        $folder = $entity_metadata_wrapper->{$folder_field_id}->value()->name;
+      }
+    }
+  }
+  else {
+    $folder = '';
+  }
+
+  // Need to resolve uri before passing it to cloudinary to process
+  $entity->uri = _cloudinary_file_upload($entity->uri, $context, $prefix, $folder);
+  $entity->destination = $entity->uri;
 }
 
 /**
@@ -181,7 +201,7 @@ function _cloudinary_strip_extension($filename) {
 function _cloudinary_initialize() {
   libraries_load('cloudinary');
 
-  $initialized = & drupal_static('cloudinary_initialised', FALSE);
+  $initialized = &drupal_static('cloudinary_initialised', FALSE);
   if ($initialized) {
     return;
   }
@@ -194,25 +214,27 @@ function _cloudinary_initialize() {
 
 function _cloudinary_extract_uri_elements($uri) {
 
-	// Retrieve normal image url
-	$url_parameters = drupal_parse_url($uri);
-	$path = $url_parameters['path'];
+  // Retrieve normal image url
+  $url_parameters = drupal_parse_url($uri);
+  $path = $url_parameters['path'];
 
-	// Retrieve the scheme if possible
-	$url_parameters['scheme'] = file_uri_scheme($path);
+  // Retrieve the scheme if possible
+  $url_parameters['scheme'] = file_uri_scheme($path);
 
-	// If available, strip it off our path
-	if (strlen($url_parameters['scheme']) > 0) $path = substr($path, strlen($url_parameters['scheme']) + 3);
-	$url_parameters['path_pieces'] = explode('/', $path);
+  // If available, strip it off our path
+  if (strlen($url_parameters['scheme']) > 0) {
+    $path = substr($path, strlen($url_parameters['scheme']) + 3);
+  }
+  $url_parameters['path_pieces'] = explode('/', $path);
 
-	// Extract final piece so that we can extract file extension
-	$final_path_piece = $url_parameters['path_pieces'][count($url_parameters['path_pieces']) - 1];
-	$cloudinary_id = _cloudinary_strip_extension($final_path_piece);
+  // Extract final piece so that we can extract file extension
+  $final_path_piece = $url_parameters['path_pieces'][count($url_parameters['path_pieces']) - 1];
+  $cloudinary_id = _cloudinary_strip_extension($final_path_piece);
 
-	$url_parameters['extension'] = (strlen($final_path_piece) - strlen($cloudinary_id)) > 1 ? substr($final_path_piece, strlen($cloudinary_id) + 1) : 'png';
-	$url_parameters['path_pieces'][count($url_parameters['path_pieces']) - 1] = $cloudinary_id;
+  $url_parameters['extension'] = (strlen($final_path_piece) - strlen($cloudinary_id)) > 1 ? substr($final_path_piece, strlen($cloudinary_id) + 1) : 'png';
+  $url_parameters['path_pieces'][count($url_parameters['path_pieces']) - 1] = $cloudinary_id;
 
-	return $url_parameters;
+  return $url_parameters;
 }
 
 /**
@@ -221,39 +243,46 @@ function _cloudinary_extract_uri_elements($uri) {
  * @param $id
  */
 function _cloudinary_file_upload($image_uri, $context = array(), $prefix = '', $folder = '') {
-    libraries_load('cloudinary');
-    _cloudinary_initialize();
+  libraries_load('cloudinary');
+  _cloudinary_initialize();
 
-    $file_real_path = drupal_realpath($image_uri);
+  $file_real_path = drupal_realpath($image_uri);
 
-    $public_id_components = array();
+  $public_id_components = array();
 
-    // This does not seem to work at the moment
-    if (strlen($prefix) > 0) $public_id_components[] = $prefix;
-    if (strlen($folder) > 0) $public_id_components[] = $folder;
+  // This does not seem to work at the moment
+  if (strlen($prefix) > 0) {
+    $public_id_components[] = $prefix;
+  }
+  if (strlen($folder) > 0) {
+    $public_id_components[] = $folder;
+  }
 
-    $generated_folder = implode('/', $public_id_components);
+  $generated_folder = implode('/', $public_id_components);
 
-    $options = array(
-      "folder" => $generated_folder,
-      "use_filename" => true,
-    );
+  $options = array(
+    "folder" => $generated_folder,
+    "use_filename" => TRUE,
+  );
 
-    // Add additional parameters where required
-    if (count($context) > 0) $options['context'] = $context;
+  // Add additional parameters where required
+  if (count($context) > 0) {
+    $options['context'] = $context;
+  }
 
-    $browsable_result = \Cloudinary\Uploader::upload($file_real_path, $options);
+  $browsable_result = \Cloudinary\Uploader::upload($file_real_path, $options);
 
-    $extension = $browsable_result['format'];
+  $extension = $browsable_result['format'];
 
-    // Caveat - when uploading using a folder, the folder will automatically be appended to the beginning of the id on the cloudinary side
-    $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($browsable_result['public_id']), urlencode($extension), urlencode($image_uri));
+  // Caveat - when uploading using a folder, the folder will automatically be appended to the beginning of the id on the cloudinary side
+  $cloudinary_uri = sprintf('cloudinary://id/%s/ext/%s/original/%s', urlencode($browsable_result['public_id']), urlencode($extension), urlencode($image_uri));
 
-    return $cloudinary_uri;
+  return $cloudinary_uri;
 }
 
 /**
- * Implements hook_image_effect_info()
+ * Implements hook_image_effect_info().
+ *
  * Define a new image effect type that will appear in the image effects dropdown.
  */
 function cloudinary_image_effect_info() {
@@ -357,7 +386,7 @@ function cloudinary_crop_form($data) {
     '#type' => 'select',
     '#title' => t('Effect'),
     '#options' => array(
-  		'' => '',
+      '' => '',
       'grayscale' => 'grayscale',
       'blackwhite' => 'blackwhite',
       'oil_paint' => 'oil paint',
@@ -407,7 +436,19 @@ function cloudinary_crop_form($data) {
   $form['quality'] = array(
     '#type' => 'select',
     '#title' => t('Quality'),
-    '#options' => drupal_map_assoc(array('', 10,20,30,40,50,60,70,80,90,100)),
+    '#options' => drupal_map_assoc(array(
+      '',
+      10,
+      20,
+      30,
+      40,
+      50,
+      60,
+      70,
+      80,
+      90,
+      100
+    )),
     '#default_value' => isset($data['quality']) ? $data['quality'] : '80',
 
   );
@@ -448,7 +489,7 @@ function cloudinary_theme() {
         'item' => NULL,
         'path' => NULL,
         'image_style' => NULL,
-    		'image_rendered_as_src' => false,
+        'image_rendered_as_src' => FALSE,
       ),
     ),
     'image_style_cloudinary' => array(
@@ -562,7 +603,7 @@ function cloudinary_style_url($style_name, $filename) {
     $variables['extension'] = $properties['ext'];
 
     $transformations = array();
-    if (is_array($style) && array_key_exists('effects',$style)){
+    if (is_array($style) && array_key_exists('effects', $style)) {
       foreach ($style['effects'] as $effect) {
         foreach ($effect['data'] as $key => $value) {
           if ($value == '') {
@@ -585,7 +626,7 @@ function cloudinary_style_url($style_name, $filename) {
 function cloudinary_views_api() {
   return array(
     'api' => 3,
-    'path' => drupal_get_path('module','cloudinary'),
+    'path' => drupal_get_path('module', 'cloudinary'),
   );
 }
 
@@ -627,17 +668,17 @@ function cloudinary_media_browser_plugin_info() {
  * Implements hook_entity_info().
  */
 function cloudinary_entity_info() {
-    $return = array(
-      'cloudinary_admin_api' => array(
-        'label' => t('Cloudinary Admin API Entity'),
-        'controller class' => 'CloudinaryAdminAPIEntityController',
-        'entity keys' => array(
-          'id' => 'public_id',
-        ),
-        'module' => 'cloudinary',
-      )
-    );
-    return $return;
+  $return = array(
+    'cloudinary_admin_api' => array(
+      'label' => t('Cloudinary Admin API Entity'),
+      'controller class' => 'CloudinaryAdminAPIEntityController',
+      'entity keys' => array(
+        'id' => 'public_id',
+      ),
+      'module' => 'cloudinary',
+    )
+  );
+  return $return;
 }
 
 /**
@@ -645,146 +686,154 @@ function cloudinary_entity_info() {
  */
 function cloudinary_entity_property_info() {
 
-    $info['cloudinary_admin_api']['properties'] = array(
-        'public_id' => array(
-          'label' => t('Public ID'),
-          'type' => 'text',
-        ),
-        'format' => array(
-          'label' => t('Format'),
-          'type' => 'text',
-        ),
-        'version' => array(
-          'label' => t('Version'),
-          'type' => 'integer',
-        ),
-        'resource_type' => array(
-          'label' => t('Resource Type'),
-          'type' => 'text',
-        ),
-        'type' => array(
-          'label' => t('Type'),
-          'type' => 'text',
-        ),
-        'created_at' => array(
-          'label' => t('Created at'),
-          'type' => 'date',
-        ),
-        'bytes' => array(
-          'label' => t('Bytes'),
-          'type' => 'integer',
-        ),
-        'width' => array(
-          'label' => t('Width'),
-          'type' => 'integer',
-        ),
-        'height' => array(
-          'label' => t('Height'),
-          'type' => 'integer',
-        ),
-        'preview' => array(
-          'label' => t('Preview'),
-          'type' => 'text',
-        ),
+  $info['cloudinary_admin_api']['properties'] = array(
+    'public_id' => array(
+      'label' => t('Public ID'),
+      'type' => 'text',
+    ),
+    'format' => array(
+      'label' => t('Format'),
+      'type' => 'text',
+    ),
+    'version' => array(
+      'label' => t('Version'),
+      'type' => 'integer',
+    ),
+    'resource_type' => array(
+      'label' => t('Resource Type'),
+      'type' => 'text',
+    ),
+    'type' => array(
+      'label' => t('Type'),
+      'type' => 'text',
+    ),
+    'created_at' => array(
+      'label' => t('Created at'),
+      'type' => 'date',
+    ),
+    'bytes' => array(
+      'label' => t('Bytes'),
+      'type' => 'integer',
+    ),
+    'width' => array(
+      'label' => t('Width'),
+      'type' => 'integer',
+    ),
+    'height' => array(
+      'label' => t('Height'),
+      'type' => 'integer',
+    ),
+    'preview' => array(
+      'label' => t('Preview'),
+      'type' => 'text',
+    ),
+  );
+
+  $cloudinary_field_mappings = variable_get('cloudinary_field_mappings', array());
+  foreach ($cloudinary_field_mappings as $field => $mapping) {
+    $info['cloudinary_admin_api']['properties']['cloudinary_context_' . $mapping] = array(
+      'label' => t('Cloudinary Context - ' . $mapping),
+      'type' => 'text',
     );
+  }
 
-    $cloudinary_field_mappings = variable_get('cloudinary_field_mappings', array());
-    foreach($cloudinary_field_mappings as $field => $mapping) {
-        $info['cloudinary_admin_api']['properties']['cloudinary_context_' . $mapping] = array(
-          'label' => t('Cloudinary Context - ' . $mapping),
-          'type' => 'text',
-        );
-    }
-
-    return $info;
+  return $info;
 }
 
 function _cloudinary_import_file_entity_from_cloudinary_public_id($cloudinary_id) {
-    libraries_load('cloudinary');
-    _cloudinary_initialize();
+  libraries_load('cloudinary');
+  _cloudinary_initialize();
 
-    $api = new \Cloudinary\Api();
-    $image_resource = $api->resource(urlencode($cloudinary_id), array('image_metadata' => true));
-    $image_resource_array = get_object_vars($image_resource);
+  $api = new \Cloudinary\Api();
+  $image_resource = $api->resource(urlencode($cloudinary_id), array('image_metadata' => TRUE));
+  $image_resource_array = get_object_vars($image_resource);
 
-    $extension = $image_resource_array['format'];
+  $extension = $image_resource_array['format'];
 
-    $uri = MediaCloudinaryStreamWrapper::encodeURI($cloudinary_id, $extension);
-    $file_to_be_saved = file_uri_to_object($uri);
+  $uri = MediaCloudinaryStreamWrapper::encodeURI($cloudinary_id, $extension);
+  $file_to_be_saved = file_uri_to_object($uri);
 
-    // Attach preliminary data
-    $file_to_be_saved->metadata = array(
-      'width' => $image_resource_array['width'],
-      'height' => $image_resource_array['height'],
-    );
+  // Attach preliminary data
+  $file_to_be_saved->metadata = array(
+    'width' => $image_resource_array['width'],
+    'height' => $image_resource_array['height'],
+  );
 
-    if (!empty($image_resource_array['context']['custom']['caption'])) $file_to_be_saved->filename = $image_resource_array['context']['custom']['caption'];
-    else $file_to_be_saved->filename = $cloudinary_id;
+  if (!empty($image_resource_array['context']['custom']['caption'])) {
+    $file_to_be_saved->filename = $image_resource_array['context']['custom']['caption'];
+  }
+  else {
+    $file_to_be_saved->filename = $cloudinary_id;
+  }
 
-    file_save($file_to_be_saved);
+  file_save($file_to_be_saved);
 
-    $fid = $file_to_be_saved->fid;
-    $file_loaded = file_load($fid);
-    $file_entity_metadata_wrapper = entity_metadata_wrapper('file', $file_loaded);
-    $file_entity_metadata_wrapper_property_info = $file_entity_metadata_wrapper->getPropertyInfo();
+  $fid = $file_to_be_saved->fid;
+  $file_loaded = file_load($fid);
+  $file_entity_metadata_wrapper = entity_metadata_wrapper('file', $file_loaded);
+  $file_entity_metadata_wrapper_property_info = $file_entity_metadata_wrapper->getPropertyInfo();
 
-    $context_mapping = variable_get('cloudinary_field_mappings', array("field_file_image_alt_text" => "alt","field_file_image_title_text" => "caption"));
-    $context_mapping_row_data = array();
-    foreach ($context_mapping as $field_id => $cloudinary_context_id) {
-        if (!empty($image_resource_array['context']['custom'][$cloudinary_context_id])) {
+  $context_mapping = variable_get('cloudinary_field_mappings', array(
+    "field_file_image_alt_text" => "alt",
+    "field_file_image_title_text" => "caption"
+  ));
+  $context_mapping_row_data = array();
+  foreach ($context_mapping as $field_id => $cloudinary_context_id) {
+    if (!empty($image_resource_array['context']['custom'][$cloudinary_context_id])) {
 
-            switch ($file_entity_metadata_wrapper_property_info[$field_id]['type']) {
-              case 'taxonomy_term' :
-                $vocabulary_identifier = $file_entity_metadata_wrapper_property_info[$field_id]['bundle'];
+      switch ($file_entity_metadata_wrapper_property_info[$field_id]['type']) {
+        case 'taxonomy_term' :
+          $vocabulary_identifier = $file_entity_metadata_wrapper_property_info[$field_id]['bundle'];
 
-                $vocabulary = taxonomy_vocabulary_machine_name_load($vocabulary_identifier);
+          $vocabulary = taxonomy_vocabulary_machine_name_load($vocabulary_identifier);
 
-                $query = new EntityFieldQuery;
-                $result = $query
-                    ->entityCondition('entity_type', 'taxonomy_term')
-                    ->propertyCondition('name', $image_resource_array['context']['custom'][$cloudinary_context_id])
-                    ->propertyCondition('vid', 1)
-                    ->execute();
+          $query = new EntityFieldQuery;
+          $result = $query
+            ->entityCondition('entity_type', 'taxonomy_term')
+            ->propertyCondition('name', $image_resource_array['context']['custom'][$cloudinary_context_id])
+            ->propertyCondition('vid', 1)
+            ->execute();
 
-                $tid = -1;
-                if (!empty($result['taxonomy_term'])) {
-                    $first_term = reset($result['taxonomy_term']);
-                    $tid = $first_term->tid;
-                }
+          $tid = -1;
+          if (!empty($result['taxonomy_term'])) {
+            $first_term = reset($result['taxonomy_term']);
+            $tid = $first_term->tid;
+          }
 
-                if (-1 === $tid) {
-                    // Need to create a new taxonomy term and store the tid
-                    $term = new stdClass();
-                    $term->name = $image_resource_array['context']['custom'][$cloudinary_context_id];
-                    $term->vid = $vocabulary->vid;
-                    taxonomy_term_save($term);
-                    $tid = $term->tid;
-                }
+          if (-1 === $tid) {
+            // Need to create a new taxonomy term and store the tid
+            $term = new stdClass();
+            $term->name = $image_resource_array['context']['custom'][$cloudinary_context_id];
+            $term->vid = $vocabulary->vid;
+            taxonomy_term_save($term);
+            $tid = $term->tid;
+          }
 
-                $file_entity_metadata_wrapper->$field_id->set($tid);
-                break;
+          $file_entity_metadata_wrapper->$field_id->set($tid);
+          break;
 
-              case 'text' :
-                $file_entity_metadata_wrapper->$field_id->set($image_resource_array['context']['custom'][$cloudinary_context_id]);
-                break;
-            }
-        }
+        case 'text' :
+          $file_entity_metadata_wrapper->$field_id->set($image_resource_array['context']['custom'][$cloudinary_context_id]);
+          break;
+      }
     }
+  }
 
-    $file_entity_metadata_wrapper->save();
+  $file_entity_metadata_wrapper->save();
 
-    return $file_loaded;
+  return $file_loaded;
 }
 
-// JSON Callback for importing a piece of media into the site
-// The USER requires 'import cloudinary media' access to use it
+/**
+ * JSON Callback for importing a piece of media into the site
+ * The USER requires 'import cloudinary media' access to use it
+ */
 function _cloudinary_import_media() {
-
   $response = new stdClass();
 
   // Retrieve public ID
-  if (empty($_POST['data'])){
-    $response->data = null;
+  if (empty($_POST['data'])) {
+    $response->data = NULL;
     $response->error = 1;
     $response->error_message = "No data supplied";
     drupal_json_output($response);
@@ -793,13 +842,13 @@ function _cloudinary_import_media() {
   }
 
   try {
+    // TODO: Is this secure?
     $remote_json = $_POST['data'];
     $data = json_decode($remote_json);
 
     $variables = get_object_vars($data);
-  }
-  catch (Exception $e) {
-    $response->data = null;
+  } catch (Exception $e) {
+    $response->data = NULL;
     $response->error = 2;
     $response->error_message = $e->getMessage();
     drupal_json_output($response);
@@ -808,8 +857,8 @@ function _cloudinary_import_media() {
   }
 
   // Retrieve public ID
-  if (empty($variables['cloudinary_public_id'])){
-    $response->data = null;
+  if (empty($variables['cloudinary_public_id'])) {
+    $response->data = NULL;
     $response->error = 3;
     $response->error_message = "No Cloudinary Public ID supplied";
     drupal_json_output($response);
@@ -821,9 +870,8 @@ function _cloudinary_import_media() {
 
   try {
     $new_imported_entity = _cloudinary_import_file_entity_from_cloudinary_public_id($public_id);
-  }
-  catch (Exception $e) {
-    $response->data = null;
+  } catch (Exception $e) {
+    $response->data = NULL;
     $response->error = 4;
     $response->error_message = $e->getMessage();
     drupal_json_output($response);
