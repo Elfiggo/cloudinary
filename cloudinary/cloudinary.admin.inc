@@ -43,6 +43,31 @@ function cloudinary_settings_form() {
   return system_settings_form($form);
 }
 
+/**
+ * Global settings section.
+ * @return mixed
+ */
+function cloudinary_global_settings_form() {
+  $form = array();
+
+  $form['cloudinary_api_global'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Cloudinary API Global Settings'),
+    '#weight' => 5,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  $form['cloudinary_api_global']['cloudinary_cdn_subdomain'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use CDN Subdomains'),
+    '#default_value' => variable_get('cloudinary_cdn_subdomain', ''),
+    '#description' => t("Reduce site load time with multiple CDN sub-domains"),
+  );
+
+  return system_settings_form($form);
+}
+
 function cloudinary_site_prefix_form($form, &$form_state) {
 
   $form['cloudinary_site_prefix_fieldset'] = array(

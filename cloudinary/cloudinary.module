@@ -86,6 +86,7 @@ function cloudinary_settings_page() {
 
   $items = array(
     'cloudinary_settings_form' => drupal_get_form('cloudinary_settings_form'),
+    'cloudinary_global_settings_form' => drupal_get_form('cloudinary_global_settings_form'),
     'cloudinary_site_prefix_form' => drupal_get_form('cloudinary_site_prefix_form'),
     'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
     'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),
@@ -209,6 +210,12 @@ function _cloudinary_initialize() {
   $api_secret = variable_get('cloudinary_api_secret', '');
   $api_cloud_name = variable_get('cloudinary_api_cloud_name', '');
   Cloudinary::config_from_url(sprintf('cloudinary://%s:%s@%s', $api_key, $api_secret, $api_cloud_name));
+
+  // Set the global flag for cdn subdomain if applicable.
+  if (variable_get('cloudinary_cdn_subdomain', '')) {
+    \Cloudinary::config(array("cdn_subdomain" => TRUE));
+  }
+
   $initialized = TRUE;
 }
 
