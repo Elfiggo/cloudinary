@@ -450,7 +450,17 @@ function cloudinary_crop_form($data) {
       100
     )),
     '#default_value' => isset($data['quality']) ? $data['quality'] : '80',
+  );
 
+  $form['fetch_format'] = array(
+    '#type' => 'select',
+    '#title' => t('Fetch format'),
+    '#default_value' => isset($data['fetch_format']) ? $data['fetch_format'] : FALSE,
+    '#description' => t("Enable support for dynamic delivery of WebP images."),
+    '#options' => array(
+      '' => '',
+      'auto' => 'auto',
+    )
   );
 
   return $form;
