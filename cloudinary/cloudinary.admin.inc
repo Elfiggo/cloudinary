@@ -18,26 +18,13 @@ function cloudinary_settings_form() {
     '#weight' => 5,
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
-    '#description' => t("The information for this page can be found on your Cloudinary dashboard, <a href='https://cloudinary.com/console'>here</a>"),
   );
 
-  $form['cloudinary_api']['cloudinary_api_key'] = array(
+  $form['cloudinary_api']['cloudinary_env_var'] = array(
     '#type' => 'textfield',
-    '#title' => t('API Key'),
-    '#default_value' => variable_get('cloudinary_api_key', ''),
-    '#description' => t("API Key - Found on Cloudinary dashboard"),
-  );
-  $form['cloudinary_api']['cloudinary_api_secret'] = array(
-    '#type' => 'textfield',
-    '#title' => t('API Secret Key'),
-    '#default_value' => variable_get('cloudinary_api_secret', ''),
-    '#description' => t("API Secret - Found on Cloudinary dashboard"),
-  );
-  $form['cloudinary_api']['cloudinary_api_cloud_name'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Cloud Name'),
-    '#default_value' => variable_get('cloudinary_api_cloud_name', ''),
-    '#description' => t("Cloud Name - Found on Cloudinary dashboard"),
+    '#title' => t('Environment Variable'),
+    '#default_value' => variable_get('cloudinary_env_var', ''),
+    '#description' => t("Environment Variable - Found on Cloudinary !dashboard.", array('!dashboard' => l(t('dashboard'), 'https://cloudinary.com/console'))),
   );
 
   return system_settings_form($form);
