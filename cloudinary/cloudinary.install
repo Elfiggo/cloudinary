@@ -86,7 +86,7 @@ function cloudinary_requirements($phase) {
       }
       else {
         $requirements['cloudinary_prefix'] = array(
-          'title' => t('Cloudinary Site Prefix.'),
+          'title' => t('Cloudinary Site Prefix'),
           'value' => $prefix,
           'severity' => REQUIREMENT_OK,
         );
