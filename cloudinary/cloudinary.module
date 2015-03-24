@@ -207,6 +207,12 @@ function _cloudinary_initialize() {
   }
 
   $api_env = variable_get('cloudinary_env_var', '');
+
+  $prefix = 'CLOUDINARY_URL=';
+  if (substr($api_env, 0, strlen($prefix)) == $prefix) {
+    $api_env = substr($api_env, strlen($prefix));
+  }
+  
   Cloudinary::config_from_url($api_env);
 
   // Set the global flag for cdn subdomain if applicable.
