@@ -16,6 +16,26 @@ function cloudinary_settings_form() {
     _cloudinary_check_connection();
   }
 
+  $form['support'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Cloudinary'),
+    '#weight' => 5,
+    '#collapsible' => FALSE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['support']['dashboard_link'] = array(
+    '#markup' => l(t('Cloudinary Dashboard'), 'https://cloudinary.com/console'),
+  );
+
+  $form['support']['support_link'] = array(
+    '#markup' => '<br />' . l(t('Cloudinary Support'), 'http://support.cloudinary.com'),
+  );
+
+  $form['support']['support_link_ticket'] = array(
+    '#markup' => '<br />' . l(t('Cloudinary Support - Submit a Request'), 'http://support.cloudinary.com/hc/en-us/requests/new'),
+  );
+
   $form['cloudinary_api'] = array(
     '#type' => 'fieldset',
     '#title' => t('Cloudinary API Settings'),
@@ -28,7 +48,7 @@ function cloudinary_settings_form() {
     '#type' => 'textfield',
     '#title' => t('Environment Variable'),
     '#default_value' => variable_get('cloudinary_env_var', ''),
-    '#description' => t("Environment Variable - Found on Cloudinary !dashboard, in a form of 'CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME?cname=CNAME'", array('!dashboard' => l(t('dashboard'), 'https://cloudinary.com/console'))),
+    '#description' => t("Environment Variable - Found on Cloudinary !dashboard. <br />Expected format: <i>CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME?cname=CNAME</i>", array('!dashboard' => l(t('dashboard'), 'https://cloudinary.com/console'))),
   );
 
   $form['cloudinary_api']['cloudinary_cdn_subdomain'] = array(
