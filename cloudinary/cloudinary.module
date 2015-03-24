@@ -86,7 +86,6 @@ function cloudinary_settings_page() {
 
   $items = array(
     'cloudinary_settings_form' => drupal_get_form('cloudinary_settings_form'),
-    'cloudinary_global_settings_form' => drupal_get_form('cloudinary_global_settings_form'),
     'cloudinary_site_prefix_form' => drupal_get_form('cloudinary_site_prefix_form'),
     'cloudinary_context_mapping_settings_form' => drupal_get_form('cloudinary_context_mapping_settings_form'),
     'cloudinary_folder_settings_form' => drupal_get_form('cloudinary_folder_settings_form'),

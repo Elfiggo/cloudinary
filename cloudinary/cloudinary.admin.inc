@@ -17,7 +17,7 @@ function cloudinary_settings_form() {
     '#title' => t('Cloudinary API Settings'),
     '#weight' => 5,
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
+    '#collapsed' => FALSE,
   );
 
   $form['cloudinary_api']['cloudinary_env_var'] = array(
@@ -27,25 +27,7 @@ function cloudinary_settings_form() {
     '#description' => t("Environment Variable - Found on Cloudinary !dashboard.", array('!dashboard' => l(t('dashboard'), 'https://cloudinary.com/console'))),
   );
 
-  return system_settings_form($form);
-}
-
-/**
- * Global settings section.
- * @return mixed
- */
-function cloudinary_global_settings_form() {
-  $form = array();
-
-  $form['cloudinary_api_global'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Cloudinary API Global Settings'),
-    '#weight' => 5,
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-  );
-
-  $form['cloudinary_api_global']['cloudinary_cdn_subdomain'] = array(
+  $form['cloudinary_api']['cloudinary_cdn_subdomain'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use CDN Subdomains'),
     '#default_value' => variable_get('cloudinary_cdn_subdomain', ''),
