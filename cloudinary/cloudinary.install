@@ -37,6 +37,39 @@ function cloudinary_requirements($phase) {
         );
       }
 
+      // Cloudinary Environment variable.
+      $api_env = variable_get('cloudinary_env_var', '');
+
+      if (!$api_env) {
+        $requirements['cloudinary_env_var'] = array(
+          'title' => t('Cloudinary Environment Variable undefined'),
+          'value' => 'Undefined',
+          'severity' => REQUIREMENT_ERROR,
+          'description' => $t('!error You need to set the !link.', array(
+            '!error' => $error_message,
+            '!link' => l($t('environment variable'), 'admin/config/media/cloudinary')
+          )),
+        );
+      }
+      elseif (!_cloudinary_check_connection()) {
+        $requirements['cloudinary_env_var'] = array(
+          'title' => t('Cloudinary Environment Variable not correct'),
+          'value' => 'Undefined',
+          'severity' => REQUIREMENT_ERROR,
+          'description' => $t('!error You need to set the correct !link.', array(
+            '!error' => $error_message,
+            '!link' => l($t('environment variable'), 'admin/config/media/cloudinary')
+          )),
+        );
+      }
+      else {
+        $requirements['cloudinary_env_var'] = array(
+          'title' => t('Cloudinary Environment Variable'),
+          'value' => 'OK',
+          'severity' => REQUIREMENT_OK,
+        );
+      }
+
       // Cloudinary site prefix.
       $prefix = variable_get('cloudinary_site_prefix', '');
 

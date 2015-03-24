@@ -212,15 +212,17 @@ function _cloudinary_initialize() {
   if (substr($api_env, 0, strlen($prefix)) == $prefix) {
     $api_env = substr($api_env, strlen($prefix));
   }
-  
-  Cloudinary::config_from_url($api_env);
 
-  // Set the global flag for cdn subdomain if applicable.
-  if (variable_get('cloudinary_cdn_subdomain', '')) {
-    \Cloudinary::config(array("cdn_subdomain" => TRUE));
+  if (_cloudinary_check_connection()) {
+    Cloudinary::config_from_url($api_env);
+
+    // Set the global flag for cdn subdomain if applicable.
+    if (variable_get('cloudinary_cdn_subdomain', '')) {
+      \Cloudinary::config(array("cdn_subdomain" => TRUE));
+    }
+
+    $initialized = TRUE;
   }
-
-  $initialized = TRUE;
 }
 
 function _cloudinary_extract_uri_elements($uri) {
@@ -906,4 +908,62 @@ function _cloudinary_import_media() {
 
   drupal_json_output($response);
   drupal_exit();
+}
+
+/**
+ * Checks for valid credentials.
+ */
+function _cloudinary_check_connection() {
+  $valid = FALSE;
+  $api_env = variable_get('cloudinary_env_var', '');
+
+  if ($api_env) {
+    // Break the environment variable into key/secret/cloud.
+    preg_match('#(?<=://)([0-9\.a-z\.A-Z]+)#', $api_env, $match);
+    if (isset($match[0])) $key = $match[0];
+
+    preg_match('#(?<=\:)([0-9\.a-z\.A-Z]+)#', $api_env, $match);
+    if (isset($match[0])) $secret = $match[0];
+
+    preg_match('#(?<=@)([0-9\.a-z\.A-Z]+)#', $api_env, $match);
+    if (isset($match[0])) $cloud = $match[0];
+
+    if (isset($key) && isset($secret) && isset($cloud)) {
+      $url = sprintf('https://%s:%s@api.cloudinary.com/v1_1/%s/resources/image', $key, $secret, $cloud);
+
+      // Make a curl request to see if the entered details are vaild.
+      $curl = curl_init();
+      curl_setopt_array($curl, array(
+        CURLOPT_RETURNTRANSFER => 1,
+        CURLOPT_URL => $url,
+        CURLOPT_SSL_VERIFYPEER => FALSE,
+      ));
+      // Send the request & save response to $resp
+      $resp = curl_exec($curl);
+      // Close request to clear up some resources
+      curl_close($curl);
+
+      if ($resp) {
+        $resp = json_decode($resp);
+
+        if (isset($resp->error)) {
+          drupal_set_message(t('Cloudinary Environment Variable is invalid, you can enter it !here. Cloudinary error: "!error".',
+            array(
+              '!here' => l(t('here'), 'admin/config/media/cloudinary'),
+              '!error' => $resp->error->message,
+            )
+          ), 'error');
+        }
+        else {
+          // There is a response, but contains no error, so credentials are valid.
+          $valid = TRUE;
+        }
+      }
+      else {
+        drupal_set_message(t('Unable to connect to Cloudinary'), 'error');
+      }
+    }
+  }
+
+  return $valid;
 }

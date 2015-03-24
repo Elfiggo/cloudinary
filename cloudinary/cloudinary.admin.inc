@@ -12,6 +12,10 @@
 function cloudinary_settings_form() {
   $form = array();
 
+  if (variable_get('cloudinary_env_var', '')) {
+    _cloudinary_check_connection();
+  }
+
   $form['cloudinary_api'] = array(
     '#type' => 'fieldset',
     '#title' => t('Cloudinary API Settings'),
