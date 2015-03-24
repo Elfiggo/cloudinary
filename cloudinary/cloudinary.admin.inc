@@ -17,48 +17,17 @@ function cloudinary_settings_form() {
     '#title' => t('Cloudinary API Settings'),
     '#weight' => 5,
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-    '#description' => t("The information for this page can be found on your Cloudinary dashboard, <a href='https://cloudinary.com/console'>here</a>"),
+    '#collapsed' => FALSE,
   );
 
-  $form['cloudinary_api']['cloudinary_api_key'] = array(
+  $form['cloudinary_api']['cloudinary_env_var'] = array(
     '#type' => 'textfield',
-    '#title' => t('API Key'),
-    '#default_value' => variable_get('cloudinary_api_key', ''),
-    '#description' => t("API Key - Found on Cloudinary dashboard"),
-  );
-  $form['cloudinary_api']['cloudinary_api_secret'] = array(
-    '#type' => 'textfield',
-    '#title' => t('API Secret Key'),
-    '#default_value' => variable_get('cloudinary_api_secret', ''),
-    '#description' => t("API Secret - Found on Cloudinary dashboard"),
-  );
-  $form['cloudinary_api']['cloudinary_api_cloud_name'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Cloud Name'),
-    '#default_value' => variable_get('cloudinary_api_cloud_name', ''),
-    '#description' => t("Cloud Name - Found on Cloudinary dashboard"),
+    '#title' => t('Environment Variable'),
+    '#default_value' => variable_get('cloudinary_env_var', ''),
+    '#description' => t("Environment Variable - Found on Cloudinary !dashboard.", array('!dashboard' => l(t('dashboard'), 'https://cloudinary.com/console'))),
   );
 
-  return system_settings_form($form);
-}
-
-/**
- * Global settings section.
- * @return mixed
- */
-function cloudinary_global_settings_form() {
-  $form = array();
-
-  $form['cloudinary_api_global'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Cloudinary API Global Settings'),
-    '#weight' => 5,
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-  );
-
-  $form['cloudinary_api_global']['cloudinary_cdn_subdomain'] = array(
+  $form['cloudinary_api']['cloudinary_cdn_subdomain'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use CDN Subdomains'),
     '#default_value' => variable_get('cloudinary_cdn_subdomain', ''),
