@@ -922,10 +922,10 @@ function _cloudinary_check_connection() {
     preg_match('#(?<=://)([0-9\.a-z\.A-Z]+)#', $api_env, $match);
     if (isset($match[0])) $key = $match[0];
 
-    preg_match('#(?<=\:)([0-9\.a-z\.A-Z]+)#', $api_env, $match);
+    preg_match('#(?<=\:)([0-9\.a-z\.A-Z\_]+)#', $api_env, $match);
     if (isset($match[0])) $secret = $match[0];
 
-    preg_match('#(?<=@)([0-9\.a-z\.A-Z]+)#', $api_env, $match);
+    preg_match('#(?<=@)([0-9\.a-z\.A-Z\-]+)#', $api_env, $match);
     if (isset($match[0])) $cloud = $match[0];
 
     if (isset($key) && isset($secret) && isset($cloud)) {
